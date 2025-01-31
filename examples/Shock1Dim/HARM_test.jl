@@ -5,7 +5,7 @@ using Verona
 
 eos = Verona.EosTypes.Polytrope{Float64}(4.0/3.0)
 N = 256
-P = Verona1D.ParVector1D{Float64,N}()
+P = Verona1D.ParVector1D{Float64}(N)
 for i in 1:div(N,2)
     P.arr1[i] = 1.
     P.arr2[i] = 10^4/(eos.gamma-1)

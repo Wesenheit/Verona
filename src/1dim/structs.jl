@@ -13,16 +13,16 @@ using Base.Threads
 # P2 = u - energy density
 # P3 = ux four-velocity in x
 
-mutable struct ParVector1D{T <:Real,N}
+mutable struct ParVector1D{T <:Real}
     # Parameter Vector
-    arr1::MVector{N,T}
-    arr2::MVector{N,T}
-    arr3::MVector{N,T}
+    arr1::Vector{T}
+    arr2::Vector{T}
+    arr3::Vector{T}
     size::Int64
-    function ParVector1D{T,N}() where {T, N}
-        arr1 = MVector{N,T}(zeros(N))
-        arr2 = MVector{N,T}(zeros(N))
-        arr3 = MVector{N,T}(zeros(N))
+    function ParVector1D{T}(N) where {T}
+        arr1 = zeros(T,N)
+        arr2 = zeros(T,N)
+        arr3 = zeros(T,N)
         new(arr1,arr2,arr3,N)
     end
 end

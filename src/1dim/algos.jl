@@ -41,17 +41,17 @@ end
 
 
 function HARM_HLL(P::ParVector1D,N::Int64,dt::Float64,dx::Float64,T::Float64,eos::EOS,drops::Float64,rec::Symbol,kwargs...)
-    U::ParVector1D = ParVector1D{Float64,N}()
+    U::ParVector1D = ParVector1D{Float64}(N)
 
     PR = deepcopy(P)
     PL = deepcopy(P)
     
-    UL::ParVector1D = ParVector1D{Float64,N}()
-    UR::ParVector1D = ParVector1D{Float64,N}()
+    UL::ParVector1D = ParVector1D{Float64}(N)
+    UR::ParVector1D = ParVector1D{Float64}(N)
 
-    FL::ParVector1D = ParVector1D{Float64,N}() #Left flux
-    FR::ParVector1D = ParVector1D{Float64,N}() #Right flux
-    F::ParVector1D = ParVector1D{Float64,N}() # HLL flux
+    FL::ParVector1D = ParVector1D{Float64}(N) #Left flux
+    FR::ParVector1D = ParVector1D{Float64}(N) #Right flux
+    F::ParVector1D = ParVector1D{Float64}(N) # HLL flux
 
     t::Float64 = 0
     PtoU(P,U,eos)
