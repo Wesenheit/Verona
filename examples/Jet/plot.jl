@@ -1,6 +1,6 @@
 using CairoMakie 
 using HDF5
-num = 100
+num = 99
 
 
 fig1 = Figure(size = (1920,1080))
@@ -19,13 +19,13 @@ _,X_tot,Y_tot = size(data["data"])
 X = (0,X_tot * dx)
 Y = (0,Y_tot * dy)
 gamma = sqrt.(data["data"][3,:,:] .^ 2 +data["data"][4,:,:] .^2 .+ 1.)
-min_val = minimum(log10.(data["data"][1,:,:]))
+min_val = -4 #minimum(log10.(data["data"][1,:,:]))
 max_val = maximum(log10.(data["data"][1,:,:]))
 println(min_val, " ",max_val)
-tmin = maximum(log10.(data["data"][2,div(X_tot,4),:] ./ data["data"][1,div(X_tot,4),:]))
-tmax = tmin + 0.1
+tmin = minimum(log10.(data["data"][2,div(X_tot,4),:] ./ data["data"][1,div(X_tot,4),:]))
+tmax = tmin + 0.2#maximum(log10.(data["data"][2,div(X_tot,4),:] ./ data["data"][1,div(X_tot,4),:]))
 println(tmin)
-hm1 = image!(ax1,X,Y,log10.(data["data"][1,:,:]), colorrange = (min_val, max_val), colormap = :viridis)
+hm1 = image!(ax1,X,Y,log10.(data["data"][1,:,:]), colorrange = (min_val, max_val), colormap = :cork)
 hm2 = image!(ax2,X,Y,log10.(gamma), colorrange = (0, -log10(sqrt(1-vel_max^2))), colormap = :hot)
 hm3 = image!(ax3,X,Y,log10.(data["data"][2,:,:] ./ data["data"][1,:,:]), colorrange = (tmin, tmax), colormap = :amp)
 hm4 = image!(ax4,X,Y,data["data"][4,:,:] ./ log10.(gamma), colorrange = (-vel_max, vel_max), colormap = Reverse(:RdYlBu))

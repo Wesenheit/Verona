@@ -1,6 +1,7 @@
 using BenchmarkTools
 using CairoMakie
 using Verona
+using Polynomials
 
 eos = Verona.EosTypes.Polytrope{Float64}(4.0/3.0)
 
@@ -43,14 +44,12 @@ for (i,method) in enumerate(methods)
     end
 end
 
+N  = length(sizes)
 f = Figure()
-ax = Axis(f[1, 1],xlabel = "N", ylabel = "RMSE error",xscale = log2,yscale = log10, title = L"$\delta \rho$")
+ax = Axis(f[1, 1],xlabel = "N", ylabel = "RMSE error",xscale = log10,yscale = log10, title = L"$\delta \rho$")
 names = ["Minmod","PPM","WenoZ"]
-dxs = 1 ./ sizes
 for i in 1:length(methods)
     lines!(ax,sizes,glob_err[i,:],label = names[i])
 end
 f[1, 2] = Legend(f, ax, framevisible = false)
 save("Comp_res.pdf",f)
-
-

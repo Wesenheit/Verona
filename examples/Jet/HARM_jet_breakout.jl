@@ -31,8 +31,9 @@ box_Y::Type = 100.
 R_max::Type = 50.
 R_eng::Type = 10.
 Temp::Type = 0.
-Rho0::Type = 1e-2
-U0::Type = 1e-3
+Rho0::Type = 5e-3
+Rho_core = 0.2
+U0::Type = 5e-2
 angle_jet::Type = 0.1
 dx::Type = 2*box_X / (tot_X)
 dy::Type = box_Y/tot_Y
@@ -47,7 +48,9 @@ for i in 1:P.size_X
         X = i_g * dx - box_X
         Y = j_g * dy + R_eng * cos(angle_jet)*0.75
         R = sqrt(X^2+Y^2)
-        if R < R_max
+        if R < R_eng
+            rho = Rho_core
+        elseif R < R_max
             rho = Rho0 * min((R_max/R)^2,Rho0*10)
         else
             rho = outer
@@ -71,7 +74,7 @@ for i in 1:P.size_X
         P.arr[4,i,j] = uy
     end
 end
-Cmax::Type = 0.85
+Cmax::Type = 0.8
 dt::Type = Cmax /(1/dx + 1/dy)
 T::Type = box_Y*10
 n_it::Int64 = 20.
@@ -80,8 +83,8 @@ if MPI.Comm_rank(comm) == 0
     println("dt: ",dt)
 end
 drops::Type = T/100.
-SizeX = 8
-SizeY = 8
+SizeX = 16
+SizeY = 16
 CuP = Verona2D.CuParVector2D{Type}(P)
 CUDA.@time Verona2D.HARM_HLL(comm,CuP,MPI_X,MPI_Y,SizeX,SizeY,dt,dx,dy,T,eos,drops,floor,ARGS[1],n_it,tol)
 
