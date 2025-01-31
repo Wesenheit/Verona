@@ -5,7 +5,7 @@ using CUDA
 using MPI
 using Verona
 
-Type = Float32
+Type = Float64
 
 @assert MPI.has_cuda()
 MPI.Init()
@@ -39,8 +39,8 @@ dy::Type = box_Y/tot_Y
 vmax::Type = 0.3
 for i in 1:P.size_X
     for j in 1:P.size_Y
-        i_g = Flow2D.local_to_global(i,idx,P.size_X,MPI_X)
-        j_g = Flow2D.local_to_global(j,idy,P.size_Y,MPI_Y)
+        i_g = Verona2D.local_to_global(i,idx,P.size_X,MPI_X)
+        j_g = Verona2D.local_to_global(j,idy,P.size_Y,MPI_Y)
         if i_g == 0 || j_g == 0 
             continue
         end

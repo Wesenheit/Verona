@@ -64,7 +64,7 @@ end
                 q_ip1 = P[idx,i,j+1]
                 q_ip2 = P[idx,i,j+2]
             end
-            Q_D,Q_L = PPM(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
             PL[idx] = Q_L 
         end
     end
@@ -85,7 +85,7 @@ end
                 q_ip2 = P[idx,i,j+3]
             end
 
-            Q_D,Q_L = PPM(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
             PR[idx] = Q_D
         end
     end
@@ -163,6 +163,7 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
     U = VectorLike(P)
     Uhalf = VectorLike(P)
     Phalf = VectorLike(P)
+    Phalf.arr = copy(P.arr)
     Fx = VectorLike(P)
     Fy = VectorLike(P)
 
