@@ -1,6 +1,4 @@
 using BenchmarkTools
-using CairoMakie
-using ThreadPinning
 using CUDA
 using MPI
 using Verona
@@ -15,9 +13,9 @@ MPI_Y = 1
 comm = MPI.Cart_create(comm,(MPI_X,MPI_Y), periodic=(false,false),reorder = true)
 
 
-eos = Verona.EosTypes.Polytrope{Type}(5.0/3.0)
-Nx = 2048 - 6
-Ny = 2048 - 6
+eos = Verona.EosTypes.Polytrope{Type}(4.0/3.0)
+Nx = 8192 - 6
+Ny = 8192 - 6
 P = Verona2D.ParVector2D{Type}(Nx,Ny)
 tot_X = MPI_X * Nx + 6
 tot_Y = MPI_Y * Ny + 6
@@ -55,8 +53,8 @@ for i in 1:P.size_X
         else
             rho = outer
         end
-        P.arr[1,i,j] = rho*(1 + randn()*1e-2)
-        P.arr[2,i,j] = U0*(1+randn()*1e-2) #rho * Temp/(eos.gamma - 1)
+        P.arr[1,i,j] = rho*(1 + randn()*3e-3)
+        P.arr[2,i,j] = U0*(1+randn()*3e-3) #rho * Temp/(eos.gamma - 1)
 
         angle = atan(Y,X)
         if R < R_eng && abs(angle-pi/2) < angle_jet

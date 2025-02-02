@@ -162,8 +162,6 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
     backend = KernelAbstractions.get_backend(P.arr)
     U = VectorLike(P)
     Uhalf = VectorLike(P)
-    Phalf = VectorLike(P)
-    Phalf.arr = copy(P.arr)
     Fx = VectorLike(P)
     Fy = VectorLike(P)
 
@@ -205,29 +203,30 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
             Fluxes(P.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
             Fluxes(P.arr,eos,floor,Fy.arr,y,ndrange = (P.size_X,P.size_Y))
             KernelAbstractions.synchronize(backend)
+
             Update(U.arr,Uhalf.arr,dt/2,dx,dy,Fx.arr,Fy.arr,ndrange = (P.size_X,P.size_Y))
             KernelAbstractions.synchronize(backend)
         end
 
         begin
-            UtoP(Uhalf.arr,Phalf.arr,eos,kwargs[1],kwargs[2],ndrange = (P.size_X,P.size_Y)) #Conversion to primitive variables at the half-step
+            UtoP(Uhalf.arr,P.arr,eos,kwargs[1],kwargs[2],ndrange = (P.size_X,P.size_Y)) #Conversion to primitive variables at the half-step
             KernelAbstractions.synchronize(backend)
-            Limit(Phalf.arr,floor,ndrange = (P.size_X,P.size_Y))
+            Limit(P.arr,floor,ndrange = (P.size_X,P.size_Y))
             KernelAbstractions.synchronize(backend)
         end
         
         
-        SendBoundaryX(Phalf,comm,buff_X_1,buff_X_2)
-        SendBoundaryY(Phalf,comm,buff_Y_1,buff_Y_2)
-        WaitForBoundary(Phalf,comm,buff_X_3,buff_X_4,buff_Y_3,buff_Y_4)
+        SendBoundaryX(P,comm,buff_X_1,buff_X_2)
+        SendBoundaryY(P,comm,buff_Y_1,buff_Y_2)
+        WaitForBoundary(P,comm,buff_X_3,buff_X_4,buff_Y_3,buff_Y_4)
 
         #####
         #Start of the second cycle
         #
         #Calculate Flux
         begin
-            Fluxes(Phalf.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
-            Fluxes(Phalf.arr,eos,floor,Fy.arr,y,ndrange = (P.size_X,P.size_Y))
+            Fluxes(P.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
+            Fluxes(P.arr,eos,floor,Fy.arr,y,ndrange = (P.size_X,P.size_Y))
             KernelAbstractions.synchronize(backend)
             Update(U.arr,U.arr,dt,dx,dy,Fx.arr,Fy.arr,ndrange = (P.size_X,P.size_Y))
             KernelAbstractions.synchronize(backend)
