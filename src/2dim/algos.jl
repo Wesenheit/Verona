@@ -193,11 +193,22 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
     PtoU(P.arr,U.arr,eos,ndrange = (P.size_X,P.size_Y))
     KernelAbstractions.synchronize(backend)
     thres_to_dump::T = drops
-    i::Int64 = 0.
+    i::Int64 = 0
     if MPI.Comm_rank(comm) == 0
         t0 = time()
     end
+    if length(kwargs) > 2
+        fun_bound = kwargs[3]
+    end
+    
+    to_save = Dict("T"=>t, "grid"=>[dx,dy])
+    name = out_dir * "/dump"*string(i)*".h5"
+    SaveHDF5Gather(comm,P,XMPI,YMPI,name,to_save) #save initial timestep as 0th dump
+
     while t < Tmax
+        if length(kwargs) > 2
+            fun_bound(P,t)
+        end
 
         begin
             Fluxes(P.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
@@ -245,7 +256,7 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
         SendBoundaryX(P,comm,buff_X_1,buff_X_2)
         SendBoundaryY(P,comm,buff_Y_1,buff_Y_2)
         WaitForBoundary(P,comm,buff_X_3,buff_X_4,buff_Y_3,buff_Y_4)
-        
+      
         t += dt
         if t > thres_to_dump
             i+=1
