@@ -29,5 +29,10 @@ function SaveHDF5Gather(comm,P::FlowArr{T},XMPI::Int64,YMPI::Int64,name::String,
             write(file,elem,to_save[elem])
         end
         close(file)
+        
+        if any(isnan.(global_matrix))
+            throw("Nan in matrix")
+        end
+
     end
 end

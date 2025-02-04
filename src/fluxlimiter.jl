@@ -1,4 +1,7 @@
 function MINMOD(q_im1,q_i,q_ip1)
+    """
+    simple minmod reconstruction
+    """
     sp = q_ip1 - q_i
     sm = q_i - q_im1
     ssp = sign(sp)
@@ -14,6 +17,10 @@ function SQR(x)
 end
 
 function WENOZ(q_im2::T,q_im1::T,q_i::T,q_ip1::T,q_ip2::T) where T
+    """
+    Implementation of WENOZ reconstruction, taken from AthenaPK
+    """
+
     beta_coeff = (T(13.) / T(12.), T(0.25))
     beta = (
         beta_coeff[1] * SQR(q_im2 + q_i - T(2) * q_im1) +
@@ -70,6 +77,10 @@ end
 
 
 function PPM(q_im2::T, q_im1::T, q_i::T, q_ip1::T, q_ip2::T) where T
+    """
+    Implementation of PPM limiter, taken from the AthenaPK
+    """
+
     C2 = T(1.25)
     
     # Step 1: Compute differences and interface averages
