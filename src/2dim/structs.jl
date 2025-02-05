@@ -19,13 +19,13 @@ using HDF5
 # P3 = ux four-velocity in x
 # P4 = uy four-velocity in y
 
-function local_to_global(i,px,Size_X,MPI_X)
-    if px == 0
+function local_to_global(i,p,Size,MPI)
+    if p == 0
         return i
-    elseif px > 0 && px < MPI_X-1 && (px < 4 || px > Size_X-3) 
+    elseif p > 0 && p < MPI-1 && (px < 4 || px > Size-3) 
         return 0
     else
-        return i + px * (Size_X - 6)
+        return i + p * (Size - 6)
     end
 end
 
@@ -50,8 +50,8 @@ end
 mutable struct CuParVector2D{T <:Real} <: FlowArr{T}
     # Parameter Vector
     arr::CuArray{T}
-    size_X::Int32
-    size_Y::Int32
+    size_X::Int64
+    size_Y::Int64
     function CuParVector2D{T}(arr::FlowArr{T}) where {T}
         new(CuArray{T}(arr.arr),arr.size_X,arr.size_Y)
     end
@@ -69,9 +69,9 @@ function VectorLike(X::FlowArr{T}) where T
     end
 end
 
-@kernel function kernel_PtoU(@Const(P::AbstractArray{T}), U::AbstractArray{T},eos::Polytrope{T}) where T
+@kernel inbounds = true function kernel_PtoU(@Const(P::AbstractArray{T}), U::AbstractArray{T},eos::Polytrope{T}) where T
     i, j = @index(Global, NTuple)    
-    @inbounds begin
+    begin
         gam = sqrt(P[3,i,j]^2 + P[4,i,j]^2 + 1)
         w = eos.gamma * P[2,i,j] + P[1,i,j] 
         U[1,i,j] = gam * P[1,i,j]
@@ -152,8 +152,10 @@ end
     j = Int32(j)
     il = Int32(il)
     jl = Int32(jl)
-    N = @uniform @groupsize()[1]
-    M = @uniform @groupsize()[2]
+    @uniform begin
+        Nx,Ny = @ndrange()
+        N,M = @groupsize()
+    end
     
     Ploc = @localmem eltype(U) (4,N,M)
     Uloc = @localmem eltype(U) (4,N,M)
@@ -163,7 +165,6 @@ end
         Ploc[idx,il,jl] = P[idx,i,j]
         Uloc[idx,il,jl] = U[idx,i,j]
     end
-    @synchronize
 
     #buff_out = @MVector zeros(T,4)
     buff_out_t = @localmem eltype(U) (4,N,M)
@@ -173,9 +174,8 @@ end
     buff_fun_t = @localmem eltype(U) (4,N,M)
     buff_fun = @view buff_fun_t[:,il,jl]
     buff_jac = @MVector zeros(T,16)
-    Nx,Ny = @ndrange()
 
-    if i > 3 && i < Nx - 3 && j > 3 && j < Ny-3
+    if i > 3 && i < Nx - 2 && j > 3 && j < Ny-2
         for _ in 1:n_iter
             gam = sqrt(Ploc[3,il,jl]^2 + Ploc[4,il,jl]^2 + 1)
             w = eos.gamma * Ploc[2,il,jl] + Ploc[1,il,jl] 
@@ -215,7 +215,7 @@ end
             Ploc[4,il,jl] = Ploc[4,il,jl] - buff_out[4]
         end
     end
-    @synchronize
+
     for idx in 1:4
         P[idx,i,j] = Ploc[idx,il,jl]
     end

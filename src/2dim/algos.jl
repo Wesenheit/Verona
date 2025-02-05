@@ -11,17 +11,17 @@ end
 @kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T
     i, j = @index(Global, NTuple)
     il, jl = @index(Local, NTuple)
-    i = Int32(i)
-    j = Int32(j)
-    il = Int32(il)
-    jl = Int32(jl)
     
-    Nx,Ny = @uniform @ndrange()
-
-    N = @uniform @groupsize()[1]
-    M = @uniform @groupsize()[2]
-    #size of the local threads
-
+    #Int32 variables take less register space
+    #i = Int32(i)
+    #j = Int32(j)
+    #il = Int32(il)
+    #jl = Int32(jl)
+   
+    @uniform begin
+        Nx,Ny = @ndrange()
+        N,M = @groupsize() #size of the local threads
+    end
     ###paramters on the grid 
     # sometimes it is more beneficient to put some values in the shared memory, sometimes it is more beneficien to put them in registers
     
@@ -48,6 +48,10 @@ end
     UR = @view UR_arr[:,il,jl]
     UL = @view UL_arr[:,il,jl]
 
+    for idx in 3:4
+        PL[idx] = 0.
+        PR[idx] = 0.
+    end
 
     if i > 2 && i < Nx - 1 && j > 2 && j < Ny - 1
         for idx in 1:4
@@ -95,17 +99,22 @@ end
         PR[idx] = max(floor,PR[idx])
     end
     
-    function_PtoU(PR,UR,eos)
-    function_PtoU(PL,UL,eos)
-    if dim == x
-        function_PtoFx(PR,FR,eos)
-        function_PtoFx(PL,FL,eos)
-    elseif dim == y
-        function_PtoFy(PR,FR,eos)
-        function_PtoFy(PL,FL,eos)
-    end
-
-    if i > 1 && j > 1 && i < Nx && j < Ny
+    @synchronize #Only god knows why this synchronization is crucial
+    
+    if i > 2 && j > 2 && i < Nx-2 && j < Ny-2
+        for idx in 1:2
+            PL[idx] = max(floor,PL[idx])
+            PR[idx] = max(floor,PR[idx])
+        end
+        function_PtoU(PR,UR,eos)
+        function_PtoU(PL,UL,eos)
+        if dim == x
+            function_PtoFx(PR,FR,eos)
+            function_PtoFx(PL,FL,eos)
+        elseif dim == y
+            function_PtoFy(PR,FR,eos)
+            function_PtoFy(PL,FL,eos)
+        end
     
         lorL = sqrt(PL[3]^2 + PL[4]^2 + 1)
         lorR = sqrt(PR[3]^2 + PR[4]^2 + 1)
@@ -179,18 +188,18 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
     SendBoundaryY(P,comm,buff_Y_1,buff_Y_2)
     WaitForBoundary(P,comm,buff_X_3,buff_X_4,buff_Y_3,buff_Y_4)
 
-    Limit = function_Limit(backend)
     @assert mod(P.size_X,SizeX) == 0 
     @assert mod(P.size_Y,SizeY) == 0 
     wgX = div(P.size_X,SizeX)
-    wgY = div(P.size_X,SizeY)
+    wgY = div(P.size_Y,SizeY)
 
-    Fluxes = function_Fluxes(backend, (SizeX,SizeY))
-    Update = function_Update(backend)
-    UtoP = function_UtoP(backend, (SizeX,SizeY))
-    PtoU = kernel_PtoU(backend)
+    Fluxes = function_Fluxes(backend, (SizeX,SizeY), (P.size_X,P.size_Y))
+    Update = function_Update(backend, (SizeX,SizeY),(P.size_X,P.size_Y))
+    UtoP = function_UtoP(backend, (SizeX,SizeY), (P.size_X,P.size_Y))
+    PtoU = kernel_PtoU(backend, (SizeX,SizeY), (P.size_X,P.size_Y))
+    Limit = function_Limit(backend, (SizeX,SizeY), (P.size_X,P.size_Y))
     
-    PtoU(P.arr,U.arr,eos,ndrange = (P.size_X,P.size_Y))
+    PtoU(P.arr,U.arr,eos)
     KernelAbstractions.synchronize(backend)
     thres_to_dump::T = drops
     i::Int64 = 0
@@ -211,18 +220,19 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
         end
 
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
-            Fluxes(P.arr,eos,floor,Fy.arr,y,ndrange = (P.size_X,P.size_Y))
+            Fluxes(P.arr,eos,floor,Fx.arr,x)
+            KernelAbstractions.synchronize(backend)
+            Fluxes(P.arr,eos,floor,Fy.arr,y)
             KernelAbstractions.synchronize(backend)
 
-            Update(U.arr,Uhalf.arr,dt/2,dx,dy,Fx.arr,Fy.arr,ndrange = (P.size_X,P.size_Y))
+            Update(U.arr,Uhalf.arr,dt/2,dx,dy,Fx.arr,Fy.arr)
             KernelAbstractions.synchronize(backend)
         end
 
         begin
-            UtoP(Uhalf.arr,P.arr,eos,kwargs[1],kwargs[2],ndrange = (P.size_X,P.size_Y)) #Conversion to primitive variables at the half-step
+            UtoP(Uhalf.arr,P.arr,eos,kwargs[1],kwargs[2]) #Conversion to primitive variables at the half-step
             KernelAbstractions.synchronize(backend)
-            Limit(P.arr,floor,ndrange = (P.size_X,P.size_Y))
+            Limit(P.arr,floor)
             KernelAbstractions.synchronize(backend)
         end
         
@@ -236,20 +246,21 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
         #
         #Calculate Flux
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x,ndrange = (P.size_X,P.size_Y))
-            Fluxes(P.arr,eos,floor,Fy.arr,y,ndrange = (P.size_X,P.size_Y))
+            Fluxes(P.arr,eos,floor,Fx.arr,x)
             KernelAbstractions.synchronize(backend)
-            Update(U.arr,U.arr,dt,dx,dy,Fx.arr,Fy.arr,ndrange = (P.size_X,P.size_Y))
+            Fluxes(P.arr,eos,floor,Fy.arr,y)
+            KernelAbstractions.synchronize(backend)
+            Update(U.arr,U.arr,dt,dx,dy,Fx.arr,Fy.arr)
             KernelAbstractions.synchronize(backend)
         end
         
         #sync flux on the boundaries
         
         begin
-            UtoP(U.arr,P.arr,eos,kwargs[1],kwargs[2],ndrange = (P.size_X,P.size_Y)) #Conversion to primitive variables at the half-step
+            UtoP(U.arr,P.arr,eos,kwargs[1],kwargs[2]) #Conversion to primitive variables at the half-step
             KernelAbstractions.synchronize(backend)
         
-            Limit(P.arr,floor,ndrange = (P.size_X,P.size_Y))
+            Limit(P.arr,floor)
             KernelAbstractions.synchronize(backend)
         end
         
