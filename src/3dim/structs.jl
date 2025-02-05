@@ -36,41 +36,41 @@ end
 abstract type FlowArr{T} end
 
 
-mutable struct ParVector2D{T <:Real} <: FlowArr{T}
+mutable struct ParVector3D{T <:Real} <: FlowArr{T}
     # Parameter Vector
     arr::Array{T,4}
     size_X::Int64
     size_Y::Int64
     size_Z::Int64
-    function ParVector2D{T}(Nx,Ny,Nz) where {T}
-        arr = zeros(T, 4, Nx + 6, Ny + 6, Nz + 6)
+    function ParVector3D{T}(Nx,Ny,Nz) where {T}
+        arr = zeros(T, 5, Nx + 6, Ny + 6, Nz + 6)
         new(arr,Nx + 6 , Ny + 6, Nz + 6)
     end
-    function ParVector2D{T}(arr::FlowArr{T}) where {T}
+    function ParVector3D{T}(arr::FlowArr{T}) where {T}
         new(Array{T}(arr.arr), arr.size_X, arr.size_Y, arr.size_Z)
     end
 end
 
-mutable struct CuParVector2D{T <:Real} <: FlowArr{T}
+mutable struct CuParVector3D{T <:Real} <: FlowArr{T}
     # Parameter Vector
     arr::CuArray{T}
     size_X::Int64
     size_Y::Int64
     size_Z::Int64
-    function CuParVector2D{T}(arr::FlowArr{T}) where {T}
+    function CuParVector3D{T}(arr::FlowArr{T}) where {T}
         new(CuArray{T}(arr.arr), arr.size_X, arr.size_Y, arr.size_Z)
     end
 
-    function CuParVector2D{T}(Nx::Int64, Ny::Int64, Nz::Int64) where {T}
-        new(CuArray{T}(zeros(T, 4, Nx + 6, Ny + 6, Nz + 6)), Nx + 6, Ny + 6, Nz + 6)
+    function CuParVector3D{T}(Nx::Int64, Ny::Int64, Nz::Int64) where {T}
+        new(CuArray{T}(zeros(T, 5, Nx + 6, Ny + 6, Nz + 6)), Nx + 6, Ny + 6, Nz + 6)
     end
 end
 
 function VectorLike(X::FlowArr{T}) where T
     if typeof(X.arr) <: CuArray
-        return CuParVector2D{T}(X.size_X - 6, X.size_Y - 6, X_size_Z - 6)
+        return CuParVector3D{T}(X.size_X - 6, X.size_Y - 6, X.size_Z - 6)
     else
-        return ParVector2D{T}(X.size_X - 6, X.size_Y - 6, X.size_Z - 6)
+        return ParVector3D{T}(X.size_X - 6, X.size_Y - 6, X.size_Z - 6)
     end
 end
 

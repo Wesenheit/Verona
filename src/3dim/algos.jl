@@ -13,7 +13,7 @@ end
     il, jl,kl = @index(Local, NTuple)
    
     @uniform begin
-        Nx,Ny,Nz = @uniform @ndrange()
+        Nx,Ny,Nz = @ndrange()
         N,M,L = @groupsize()
     end
     #size of the local threads
@@ -85,7 +85,7 @@ end
                 q_im2 = P[idx,i,j-1,k]
                 q_ip1 = P[idx,i,j+2,k]
                 q_ip2 = P[idx,i,j+3,k]
-            elseif
+            else
                 q_i = P[idx,i,j,k + 1]
                 q_im1 = P[idx,i,j,k]
                 q_im2 = P[idx,i,j,k-1]
@@ -98,22 +98,25 @@ end
         end
     end
     
-    for idx in 1:2
-        PL[idx] = max(floor,PL[idx])
-        PR[idx] = max(floor,PR[idx])
-    end
-    
-    function_PtoU(PR,UR,eos)
-    function_PtoU(PL,UL,eos)
-    if dim == x
-        function_PtoFx(PR,FR,eos)
-        function_PtoFx(PL,FL,eos)
-    elseif dim == y
-        function_PtoFy(PR,FR,eos)
-        function_PtoFy(PL,FL,eos)
-    end
 
-    if i > 1 && j > 1 && k > 1 && i < Nx && j < Ny && k < Nz
+    if i > 2 && j > 2 && k > 2 && i < Nx-1 && j < Ny-1 && k < Nz-1
+        for idx in 1:2
+            PL[idx] = max(floor,PL[idx])
+            PR[idx] = max(floor,PR[idx])
+        end
+        
+        function_PtoU(PR,UR,eos)
+        function_PtoU(PL,UL,eos)
+        if dim == x
+            function_PtoFx(PR,FR,eos)
+            function_PtoFx(PL,FL,eos)
+        elseif dim == y
+            function_PtoFy(PR,FR,eos)
+            function_PtoFy(PL,FL,eos)
+        elseif dim == z
+            function_PtoFz(PR,FR,eos)
+            function_PtoFz(PL,FL,eos)
+        end
     
         lorL = sqrt(PL[3]^2 + PL[4]^2 + PL[5]^2 + 1)
         lorR = sqrt(PR[3]^2 + PR[4]^2 + PR[5]^2 + 1)
@@ -138,15 +141,15 @@ end
         C_min_X = -min( (vL - sqrt(sigma_S_L * (1-vL^2 + sigma_S_L)) ) / (1 + sigma_S_L), (vR - sqrt(sigma_S_R * (1-vR^2 + sigma_S_R)) ) / (1 + sigma_S_R)) # velocity composition
         if C_max_X < 0 
             for idx in 1:5
-                Fglob[idx,i,j] =  FR[idx]
+                Fglob[idx,i,j,k] =  FR[idx]
             end
         elseif C_min_X < 0 
             for idx in 1:5
-                Fglob[idx,i,j] =  FL[idx] 
+                Fglob[idx,i,j,k] =  FL[idx] 
             end
         else
             for idx in 1:5
-                Fglob[idx,i,j] = ( FR[idx] * C_min_X + FL[idx] * C_max_X - C_max_X * C_min_X * (UR[idx] - UL[idx])) / (C_max_X + C_min_X)
+                Fglob[idx,i,j,k] = ( FR[idx] * C_min_X + FL[idx] * C_max_X - C_max_X * C_min_X * (UR[idx] - UL[idx])) / (C_max_X + C_min_X)
             end
         end
     end
@@ -156,15 +159,15 @@ end
     i, j, k = @index(Global, NTuple)    
     Nx,Ny,Nz = @uniform @ndrange()
     
-    if i > 3 && j > 3 && k > 3 && i < Nx-2 && j < Ny-2 && k<Nz-2
+    if i > 3 && j > 3 && k > 3 && i < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:5
-            Ubuff[idx,i,j,k] = U[idx,i,j,k] - dt/dx * (Fx[idx,i,j,k] - Fx[idx,i-1,j,k]) - dt/dy * (Fy[idx,i,j,k] - Fy[idx,i,j-1,k]) - dt/dz*(Fz[idx,i,j,k] - Fz[idx,i,j,k-1])
+            Ubuff[idx,i,j,k] = U[idx,i,j,k] - dt/dx * (Fx[idx,i,j,k] - Fx[idx,i-1,j,k]) - dt/dy * (Fy[idx,i,j,k] - Fy[idx,i,j-1,k]) - dt/dz * (Fz[idx,i,j,k] - Fz[idx,i,j,k-1])
         end
     end
 end
 
 
-function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64
+function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
                                     SizeX::Int64,SizeY::Int64,SizeZ::Int64,
                                     dt::T,dx::T,dy::T,dz::T,
                                     Tmax::T,eos::EOS{T},drops::T,
@@ -177,20 +180,20 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64
     Fy = VectorLike(P)
     Fz = VectorLike(P)
 
-    buff_X_1 = allocate(backend,T,4,3,P.size_Y,P.size_Z)
-    buff_X_2 = allocate(backend,T,4,3,P.size_Y,P.size_Z)
-    buff_X_3 = allocate(backend,T,4,3,P.size_Y,P.size_Z)
-    buff_X_4 = allocate(backend,T,4,3,P.size_Y,P.size_Z)
+    buff_X_1 = allocate(backend,T,5,3,P.size_Y,P.size_Z)
+    buff_X_2 = allocate(backend,T,5,3,P.size_Y,P.size_Z)
+    buff_X_3 = allocate(backend,T,5,3,P.size_Y,P.size_Z)
+    buff_X_4 = allocate(backend,T,5,3,P.size_Y,P.size_Z)
     
-    buff_Y_1 = allocate(backend,T,4,P.size_X,3,P.size_Z)
-    buff_Y_2 = allocate(backend,T,4,P.size_X,3,P.size_Z)
-    buff_Y_3 = allocate(backend,T,4,P.size_X,3,P.size_Z)
-    buff_Y_4 = allocate(backend,T,4,P.size_X,3,P.size_Z)
+    buff_Y_1 = allocate(backend,T,5,P.size_X,3,P.size_Z)
+    buff_Y_2 = allocate(backend,T,5,P.size_X,3,P.size_Z)
+    buff_Y_3 = allocate(backend,T,5,P.size_X,3,P.size_Z)
+    buff_Y_4 = allocate(backend,T,5,P.size_X,3,P.size_Z)
     
-    buff_Z_1 = allocate(backend,T,4,P.size_X,P.size_Y,3)
-    buff_Z_2 = allocate(backend,T,4,P.size_X,P.size_Y,3)
-    buff_Z_3 = allocate(backend,T,4,P.size_X,P.size_Y,3)
-    buff_Z_4 = allocate(backend,T,4,P.size_X,P.size_Y,3)
+    buff_Z_1 = allocate(backend,T,5,P.size_X,P.size_Y,3)
+    buff_Z_2 = allocate(backend,T,5,P.size_X,P.size_Y,3)
+    buff_Z_3 = allocate(backend,T,5,P.size_X,P.size_Y,3)
+    buff_Z_4 = allocate(backend,T,5,P.size_X,P.size_Y,3)
     t::T = 0
 
     SendBoundaryX(P,comm,buff_X_1,buff_X_2)

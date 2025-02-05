@@ -42,10 +42,10 @@ function WaitForBoundary(U::CuParVector2D{T},comm,
         CUDA.copyto!(buff_X_2, CUDA.@view(U.arr[:, end-2:end,:]))
     end
 
-    r1 = MPI.Irecv(buff_X_1,rank_dest_right,0,comm)
-    r2 = MPI.Irecv(buff_X_2,rank_dest_left,1,comm)                       
-    r3 = MPI.Irecv(buff_Y_1,rank_dest_up,0,comm)               
-    r4 = MPI.Irecv(buff_Y_2,rank_dest_down,1,comm)
+    r1 = MPI.Irecv!(buff_X_1,rank_dest_right,0,comm)
+    r2 = MPI.Irecv!(buff_X_2,rank_dest_left,1,comm)                       
+    r3 = MPI.Irecv!(buff_Y_1,rank_dest_up,0,comm)               
+    r4 = MPI.Irecv!(buff_Y_2,rank_dest_down,1,comm)
     MPI.Waitall([r1,r2,r3,r4])
 
     CUDA.@sync begin
