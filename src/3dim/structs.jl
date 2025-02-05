@@ -134,7 +134,7 @@ end
 @inline function LU_dec!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
 
     @inline function index(i, j)
-        return (j - 1) * 4 + i
+        return (j - 1) * 5 + i
     end
 
     for k in 1:5
