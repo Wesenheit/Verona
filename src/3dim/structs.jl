@@ -137,17 +137,17 @@ end
         return (j - 1) * 4 + i
     end
 
-    for k in 1:4
-        for i in k+1:4
+    for k in 1:5
+        for i in k+1:5
             flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
-            for j in k+1:4
+            for j in k+1:5
                 flat_matrix[index(i, j)] -= flat_matrix[index(i, k)] * flat_matrix[index(k, j)]
             end
         end
     end
 
     # Forward substitution to solve L*y = target (reusing x for y)
-    for i in 1:4
+    for i in 1:5
         x[i] = target[i]
         for j in 1:i-1
             x[i] -= flat_matrix[index(i, j)] * x[j]
@@ -155,8 +155,8 @@ end
     end
 
     # Backward substitution to solve U*x = y
-    for i in 4:-1:1
-        for j in i+1:4
+    for i in 5:-1:1
+        for j in i+1:5
             x[i] -= flat_matrix[index(i, j)] * x[j]
         end
         x[i] /= flat_matrix[index(i, i)]
