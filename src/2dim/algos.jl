@@ -8,7 +8,7 @@ const y = UInt8(2)
     P[2,i,j] = max(P[2,i,j],floor)
 end
 
-@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T
+@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8, reconstruction_method) where T
     i, j = @index(Global, NTuple)
     il, jl = @index(Local, NTuple)
     
@@ -68,7 +68,7 @@ end
                 q_ip1 = P[idx,i,j+1]
                 q_ip2 = P[idx,i,j+2]
             end
-            Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_L = reconstruction(reconstruction_method, q_im2, q_im1, q_i, q_ip1, q_ip2)
             PL[idx] = Q_L 
         end
     end
@@ -89,7 +89,7 @@ end
                 q_ip2 = P[idx,i,j+3]
             end
 
-            Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_L = reconstruction(reconstruction_method, q_im2, q_im1, q_i, q_ip1, q_ip2)
             PR[idx] = Q_D
         end
     end
@@ -167,7 +167,7 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
                                     dt::T,dx::T,dy::T,
                                     Tmax::T,eos::EOS{T},drops::T,
                                     floor::T = 1e-7,out_dir::String = ".",kwargs...) where T
-
+                                    
     backend = KernelAbstractions.get_backend(P.arr)
     U = VectorLike(P)
     Uhalf = VectorLike(P)
@@ -220,9 +220,9 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
         end
 
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x)
+            Fluxes(P.arr,eos,floor,Fx.arr,x,kwargs[4])
             KernelAbstractions.synchronize(backend)
-            Fluxes(P.arr,eos,floor,Fy.arr,y)
+            Fluxes(P.arr,eos,floor,Fy.arr,y,kwargs[4])
             KernelAbstractions.synchronize(backend)
 
             Update(U.arr,Uhalf.arr,dt/2,dx,dy,Fx.arr,Fy.arr)
@@ -246,9 +246,9 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
         #
         #Calculate Flux
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x)
+            Fluxes(P.arr,eos,floor,Fx.arr,x,kwargs[4])
             KernelAbstractions.synchronize(backend)
-            Fluxes(P.arr,eos,floor,Fy.arr,y)
+            Fluxes(P.arr,eos,floor,Fy.arr,y,kwargs[4])
             KernelAbstractions.synchronize(backend)
             Update(U.arr,U.arr,dt,dx,dy,Fx.arr,Fy.arr)
             KernelAbstractions.synchronize(backend)

@@ -1,12 +1,12 @@
 using BenchmarkTools
-using CUDA
 using MPI
+MPI.Init()
+using CUDA
 using Verona
 
 Type = Float64
 
 @assert MPI.has_cuda()
-MPI.Init()
 comm = MPI.COMM_WORLD
 MPI_X = 1
 MPI_Y = 1
@@ -77,6 +77,7 @@ dt::Type = Cmax /(1/dx + 1/dy)
 T::Type = box_X
 n_it::Int64 = 50.
 tol::Type = 1e-6
+reconstruction_method = Val(:WENOZ)
 
 T_exp::Type = box_X/10
 
@@ -105,6 +106,6 @@ drops::Type = T/100.
 SizeX = 16
 SizeY = 16
 CuP = Verona2D.CuParVector2D{Type}(P)
-CUDA.@time Verona2D.HARM_HLL(comm,CuP,MPI_X,MPI_Y,SizeX,SizeY,dt,dx,dy,T,eos,drops,floor,ARGS[1],n_it,tol,TurnOff)
+CUDA.@time Verona2D.HARM_HLL(comm,CuP,MPI_X,MPI_Y,SizeX,SizeY,dt,dx,dy,T,eos,drops,floor,ARGS[1],n_it,tol,TurnOff,reconstruction_method)
 
 MPI.Finalize()

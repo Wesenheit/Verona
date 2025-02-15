@@ -8,7 +8,7 @@ const z = UInt8(3)
     P[2,i,j,k] = max(P[2,i,j,k],floor)
 end
 
-@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T
+@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8,reconstruction_method) where T
     i, j, k = @index(Global, NTuple)
     il, jl,kl = @index(Local, NTuple)
    
@@ -66,7 +66,7 @@ end
                 q_ip1 = P[idx,i,j,k+1]
                 q_ip2 = P[idx,i,j,k+2]
             end
-            Q_D,Q_U = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_U = reconstruction(reconstruction_method, q_im2, q_im1, q_i, q_ip1, q_ip2)
             PL[idx] = Q_U 
         end
     end
@@ -93,7 +93,7 @@ end
                 q_ip2 = P[idx,i,j,k+3]
             end
 
-            Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+            Q_D,Q_L = reconstruction(reconstruction_method, q_im2, q_im1, q_i, q_ip1, q_ip2)
             PR[idx] = Q_D
         end
     end
@@ -232,9 +232,9 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
         end
 
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x)
-            Fluxes(P.arr,eos,floor,Fy.arr,y)
-            Fluxes(P.arr,eos,floor,Fz.arr,z)
+            Fluxes(P.arr,eos,floor,Fx.arr,x,kwargs[4])
+            Fluxes(P.arr,eos,floor,Fy.arr,y,kwargs[4])
+            Fluxes(P.arr,eos,floor,Fz.arr,z,kwargs[4])
             KernelAbstractions.synchronize(backend)
 
             Update(U.arr,Uhalf.arr,dt/2,dx,dy,dz,Fx.arr,Fy.arr,Fz.arr)
@@ -261,9 +261,9 @@ function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
         #
         #Calculate Flux
         begin
-            Fluxes(P.arr,eos,floor,Fx.arr,x)
-            Fluxes(P.arr,eos,floor,Fy.arr,y)
-            Fluxes(P.arr,eos,floor,Fz.arr,z)
+            Fluxes(P.arr,eos,floor,Fx.arr,x,kwargs[4])
+            Fluxes(P.arr,eos,floor,Fy.arr,y,kwargs[4])
+            Fluxes(P.arr,eos,floor,Fz.arr,z,kwargs[4])
             KernelAbstractions.synchronize(backend)
             Update(U.arr,U.arr,dt,dx,dy,dz,Fx.arr,Fy.arr,Fz.arr)
             KernelAbstractions.synchronize(backend)
