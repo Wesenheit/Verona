@@ -165,6 +165,64 @@ end
     end
 end
 
+@inline function LU_dec_pivot!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
+    @inline function index(i, j)
+        return (j - 1) * 5 + i
+    end
+
+    # LU decomposition with partial pivoting for better stability
+    for k in 1:5
+        # Find the pivot row (largest abs value in column k)
+        pivot = k
+        pivot_val = abs(flat_matrix[index(k, k)])
+        for i in k+1:5
+            tmp = abs(flat_matrix[index(i, k)])
+            if tmp > pivot_val
+                pivot_val = tmp
+                pivot = i
+            end
+        end
+        # Swap rows in the flat_matrix if needed
+        if pivot != k
+            for j in 1:5
+                tmp = flat_matrix[index(k, j)]
+                flat_matrix[index(k, j)] = flat_matrix[index(pivot, j)]
+                flat_matrix[index(pivot, j)] = tmp
+            end
+            # Also swap the corresponding entry in the target vector
+            tmp = target[k]
+            target[k] = target[pivot]
+            target[pivot] = tmp
+        end
+
+        # Elimination: update rows below pivot row
+        for i in k+1:5
+            flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
+            for j in k+1:5
+                # Use fma for a more accurate multiply–subtract step
+                flat_matrix[index(i, j)] = fma(-flat_matrix[index(i, k)], flat_matrix[index(k, j)], flat_matrix[index(i, j)])
+            end
+        end
+    end
+
+    # Forward substitution: solve L*y = target (store result in x)
+    for i in 1:5
+        x[i] = target[i]
+        for j in 1:i-1
+            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+        end
+    end
+
+    # Backward substitution: solve U*x = y
+    for i in 5:-1:1
+        for j in i+1:5
+            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+        end
+        x[i] /= flat_matrix[index(i, i)]
+    end
+end
+
+
 @kernel inbounds = true function function_UtoP(@Const(U::AbstractArray{T}), P::AbstractArray{T},eos::Polytrope{T},n_iter::Int64,tol::T=1e-10) where T
     i, j, k = @index(Global, NTuple)
     il, jl, kl = @index(Local, NTuple)
@@ -237,7 +295,7 @@ end
             buff_jac[25] = Ploc[5,il,jl,kl] ^ 2 * w / gam + w * gam      
             
             
-            LU_dec!(buff_jac,buff_fun,buff_out)
+            LU_dec_pivot!(buff_jac,buff_fun,buff_out)
 
             if buff_out[1]^2 + buff_out[2]^2 + buff_out[3]^2 + buff_out[4]^2 +buff_out[5]^2 < tol ^ 2
                 break
