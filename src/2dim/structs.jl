@@ -112,6 +112,88 @@ end
     Fy[4] = P[4]^2 * w + (eos.gamma - 1) * P[2]
 end
 
+@inline function LU_dec_pivot!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
+    @inline function index(i, j)
+        # Column-major indexing for a 4x4 matrix
+        return (j - 1) * 4 + i
+    end
+
+    # Use a statically sized mutable vector for scaling factors to avoid dynamic allocation
+    row_norm = MVector{4, T}(undef)
+
+    # Compute the scaling factor for each row (row_norm[i] = 1 / max(|A[i, j]|))
+    for i in 1:4
+        absmax = zero(T)
+        for j in 1:4
+            temp = abs(flat_matrix[index(i, j)])
+            if temp > absmax
+                absmax = temp
+            end
+        end
+        if absmax == 0
+            error("LU_decompose(): row-wise singular matrix!")
+        end
+        row_norm[i] = one(T) / absmax
+    end
+
+    # Perform LU decomposition using Crout's method with partial pivoting (scaled criterion)
+    for k in 1:4
+        # Find the pivot row by selecting the row with the largest scaled absolute value in column k
+        pivot = k
+        pivot_val = abs(flat_matrix[index(k, k)]) * row_norm[k]
+        for i in k+1:4
+            tmp = abs(flat_matrix[index(i, k)]) * row_norm[i]
+            if tmp > pivot_val
+                pivot_val = tmp
+                pivot = i
+            end
+        end
+
+        # If the pivot row is different from the current row, swap the rows in flat_matrix
+        if pivot != k
+            for j in 1:4
+                tmp = flat_matrix[index(k, j)]
+                flat_matrix[index(k, j)] = flat_matrix[index(pivot, j)]
+                flat_matrix[index(pivot, j)] = tmp
+            end
+            # Also swap the corresponding entries in the target vector
+            tmp = target[k]
+            target[k] = target[pivot]
+            target[pivot] = tmp
+            # Also swap the scaling factors for consistency
+            tmp = row_norm[k]
+            row_norm[k] = row_norm[pivot]
+            row_norm[pivot] = tmp
+        end
+
+        # Perform elimination: update rows below the pivot row
+        for i in k+1:4
+            flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
+            for j in k+1:4
+                # Use fused multiply-add for improved accuracy
+                flat_matrix[index(i, j)] = fma(-flat_matrix[index(i, k)], flat_matrix[index(k, j)], flat_matrix[index(i, j)])
+            end
+        end
+    end
+
+    # Forward substitution: solve L*y = target (store result in x)
+    for i in 1:4
+        x[i] = target[i]
+        for j in 1:i-1
+            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+        end
+    end
+
+    # Backward substitution: solve U*x = y
+    for i in 4:-1:1
+        for j in i+1:4
+            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+        end
+        x[i] /= flat_matrix[index(i, i)]
+    end
+end
+
+
 
 @inline function LU_dec!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
 
@@ -204,7 +286,8 @@ end
             buff_jac[8] = gam * Ploc[4,il,jl] * eos.gamma
             buff_jac[12] = Ploc[3,il,jl] * Ploc[4,il,jl] / gam * w
             buff_jac[16] = (2 * Ploc[4,il,jl]^2 + Ploc[3,il,jl] ^ 2 + 1) / gam * w                        
-            LU_dec!(buff_jac,buff_fun,buff_out)
+            
+            LU_dec_pivot!(buff_jac,buff_fun,buff_out)
 
             if sqrt(buff_out[1]^2 + buff_out[2]^2 + buff_out[3]^2 + buff_out[4]^2) < tol
                 break
