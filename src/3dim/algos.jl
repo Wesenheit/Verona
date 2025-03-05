@@ -2,13 +2,13 @@ const x = UInt8(1)
 const y = UInt8(2)
 const z = UInt8(3)
 
-@kernel inbounds = true function function_Limit(P::AbstractArray{T},floor::T) where T
+@kernel inbounds = true function function_Limit(P::AbstractArray{T},floor::T) where T <: Real
     i, j, k = @index(Global, NTuple)
     P[1,i,j,k] = max(P[1,i,j,k],floor)
     P[2,i,j,k] = max(P[2,i,j,k],floor)
 end
 
-@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T
+@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T <: Real
     i, j, k = @index(Global, NTuple)
     il, jl,kl = @index(Local, NTuple)
    
@@ -18,8 +18,8 @@ end
     end
     #size of the local threads
 
-    ###paramters on the grid 
-    # sometimes it is more beneficient to put some values in the shared memory, sometimes it is more beneficien to put them in registers
+    ###parameters on the grid 
+    # sometimes it is more beneficiant to put some values in the shared memory, sometimes it is more beneficient to put them in registers
     
     PL_arr = @localmem eltype(P) (5,N, M, L)
     PR_arr = @localmem eltype(P) (5,N, M, L)
@@ -155,7 +155,7 @@ end
     end
 end
 
-@kernel inbounds = true function function_Update(U::AbstractArray{T},Ubuff::AbstractArray{T},dt::T,dx::T,dy::T,dz::T,Fx::AbstractArray{T},Fy::AbstractArray{T},Fz::AbstractArray{T}) where T
+@kernel inbounds = true function function_Update(U::AbstractArray{T},Ubuff::AbstractArray{T},dt::T,dx::T,dy::T,dz::T,Fx::AbstractArray{T},Fy::AbstractArray{T},Fz::AbstractArray{T}) where T <: Real
     i, j, k = @index(Global, NTuple)    
     Nx,Ny,Nz = @uniform @ndrange()
     

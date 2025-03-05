@@ -1,10 +1,10 @@
 
-function SaveHDF5Gather(comm,P::FlowArr{T},XMPI::Int64,YMPI::Int64,ZMPI::Int64,name::String,to_save::Dict) where T
+function SaveHDF5Gather(comm,P::FlowArr{T},XMPI::Int64,YMPI::Int64,ZMPI::Int64,name::String,to_save::Dict) where T <:Real
     size = MPI.Comm_size(comm)
     flat = vec(Array{T}( @view P.arr[:,4:end-3,4:end-3,4:end-3]))
     
     if MPI.Comm_rank(comm) == 0
-        recvbuf = zeros(T,length(flat) *size)  # allocate buffer to recive 
+        recvbuf = zeros(T,length(flat) *size)  # allocate buffer to recive  
     else
         recvbuf = nothing  # Non-root processes don't allocate
     end

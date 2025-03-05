@@ -1,6 +1,6 @@
 using CUDA
 
-function SendBoundaryX(U::CuParVector3D{T},comm,buff_X_1::CuArray{T},buff_X_2::CuArray{T}) where T
+function SendBoundaryX(U::CuParVector3D{T},comm,buff_X_1::CuArray{T},buff_X_2::CuArray{T}) where T<:Real
     CUDA.@sync begin
         CUDA.copyto!(buff_X_1, CUDA.@view(U.arr[:, end-5:end-3, :,:]))
         CUDA.copyto!(buff_X_2, CUDA.@view(U.arr[:, 4:6, :,:]))
@@ -12,7 +12,7 @@ function SendBoundaryX(U::CuParVector3D{T},comm,buff_X_1::CuArray{T},buff_X_2::C
     MPI.Isend(buff_X_2,rank_source_left,1,comm)
 end
 
-function SendBoundaryY(U::CuParVector3D{T},comm,buff_Y_1::CuArray{T},buff_Y_2::CuArray{T}) where T
+function SendBoundaryY(U::CuParVector3D{T},comm,buff_Y_1::CuArray{T},buff_Y_2::CuArray{T}) where T<:Real
     CUDA.@sync begin
         CUDA.copyto!(buff_Y_1, CUDA.@view(U.arr[:, :,end-5:end-3,:]))
         CUDA.copyto!(buff_Y_2, CUDA.@view(U.arr[:, :, 4:6,:]))
@@ -25,7 +25,7 @@ function SendBoundaryY(U::CuParVector3D{T},comm,buff_Y_1::CuArray{T},buff_Y_2::C
     MPI.Isend(buff_Y_2,rank_source_down,1,comm)              #,buff_Y_2,rank_dest_down,1,comm)
 end
 
-function SendBoundaryZ(U::CuParVector3D{T},comm,buff_Z_1::CuArray{T},buff_Z_2::CuArray{T}) where T
+function SendBoundaryZ(U::CuParVector3D{T},comm,buff_Z_1::CuArray{T},buff_Z_2::CuArray{T}) where T<:Real
     CUDA.@sync begin
         CUDA.copyto!(buff_Z_1, CUDA.@view(U.arr[:, :,:,end-5:end-3]))
         CUDA.copyto!(buff_Z_2, CUDA.@view(U.arr[:, :,:, 4:6]))
@@ -41,7 +41,7 @@ end
 function WaitForBoundary(U::CuParVector3D{T},comm,
                         buff_X_1::CuArray{T},buff_X_2::AbstractArray{T},
                         buff_Y_1::CuArray{T},buff_Y_2::AbstractArray{T},
-                        buff_Z_1::CuArray{T},buff_Z_2::AbstractArray{T}) where T
+                        buff_Z_1::CuArray{T},buff_Z_2::AbstractArray{T}) where T<:Real
 
 
     rank_source_right,rank_dest_right = MPI.Cart_shift(comm,0,1)

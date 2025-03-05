@@ -57,11 +57,11 @@ mutable struct CuParVector3D{T <:Real} <: VeronaArr{T}
     size_X::Int64
     size_Y::Int64
     size_Z::Int64
-    function CuParVector3D{T}(arr::VeronaArr{T}) where {T}
+    function CuParVector3D{T}(arr::VeronaArr{T}) where T <:Real
         new(CuArray{T}(arr.arr), arr.size_X, arr.size_Y, arr.size_Z)
     end
 
-    function CuParVector3D{T}(Nx::Int64, Ny::Int64, Nz::Int64) where {T}
+    function CuParVector3D{T}(Nx::Int64, Ny::Int64, Nz::Int64) where T <:Real
         new(CuArray{T}(zeros(T, 5, Nx + 6, Ny + 6, Nz + 6)), Nx + 6, Ny + 6, Nz + 6)
     end
 end
@@ -74,7 +74,7 @@ function VectorLike(X::VeronaArr{T}) where T
     end
 end
 
-@kernel inbounds = true function kernel_PtoU(@Const(P::AbstractArray{T}), U::AbstractArray{T},eos::Polytrope{T}) where T
+@kernel inbounds = true function kernel_PtoU(@Const(P::AbstractArray{T}), U::AbstractArray{T},eos::Polytrope{T}) where T<:Real
     i, j, k = @index(Global, NTuple)    
     begin
         gam = sqrt(P[3,i,j,k]^2 + P[4,i,j,k]^2 + P[5,i,j,k]^2 + 1)  #gam = u⁰
@@ -88,7 +88,7 @@ end
 end
 
 
-@inline function function_PtoU(P::AbstractVector{T}, U::AbstractVector{T},eos::Polytrope{T}) where T
+@inline function function_PtoU(P::AbstractVector{T}, U::AbstractVector{T},eos::Polytrope{T}) where T<:Real
     gam = sqrt(P[3]^2 + P[4]^2 +P[5]^2 + 1) #gam = u⁰
     w = eos.gamma * P[2] + P[1] 
     U[1] = gam * P[1]
@@ -99,7 +99,7 @@ end
 end
 
 
-@inline function function_PtoFx(P::AbstractVector{T}, Fx::AbstractVector{T},eos::Polytrope{T}) where T
+@inline function function_PtoFx(P::AbstractVector{T}, Fx::AbstractVector{T},eos::Polytrope{T}) where T<:Real
     gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
     w = eos.gamma * P[2] + P[1] 
     Fx[1] = P[1] * P[3]
@@ -111,7 +111,7 @@ end
 
 
 
-@inline function function_PtoFy(P::AbstractArray{T}, Fy::AbstractArray{T},eos::Polytrope{T}) where T
+@inline function function_PtoFy(P::AbstractArray{T}, Fy::AbstractArray{T},eos::Polytrope{T}) where T<:Real
     gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
     w = eos.gamma * P[2] + P[1] 
     Fy[1] = P[1] * P[4]
@@ -122,7 +122,7 @@ end
 end
 
 
-@inline function function_PtoFz(P::AbstractArray{T}, Fy::AbstractArray{T},eos::Polytrope{T}) where T
+@inline function function_PtoFz(P::AbstractArray{T}, Fy::AbstractArray{T},eos::Polytrope{T}) where T<:Real
     gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
     w = eos.gamma * P[2] + P[1] 
     Fy[1] = P[1] * P[5]
@@ -133,7 +133,7 @@ end
 end
 
 
-@inline function LU_dec!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
+@inline function LU_dec!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
 
     @inline function index(i, j)
         return (j - 1) * 5 + i
@@ -165,7 +165,7 @@ end
     end
 end
 
-@inline function LU_dec_pivot!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T
+@inline function LU_dec_pivot!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
     @inline function index(i, j)
         # Column-major indexing for a 5x5 matrix
         return (j - 1) * 5 + i
@@ -246,7 +246,7 @@ end
     end
 end
 
-@kernel inbounds = true function function_UtoP(@Const(U::AbstractArray{T}), P::AbstractArray{T},eos::Polytrope{T},n_iter::Int64,tol::T=1e-10) where T
+@kernel inbounds = true function function_UtoP(@Const(U::AbstractArray{T}), P::AbstractArray{T},eos::Polytrope{T},n_iter::Int64,tol::T=1e-10) where T<:Real
     i, j, k = @index(Global, NTuple)
     il, jl, kl = @index(Local, NTuple)
 
