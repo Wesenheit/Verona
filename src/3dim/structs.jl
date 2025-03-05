@@ -8,7 +8,7 @@ using MPI
 using HDF5
 
 # Used scheme
-# U - conserved varaibles
+# U - conserved variables
 # U1 = rho ut - mass conservation
 # U2 = T^t_t - energy conservation
 # U3 = T^t_x - momentum conservation x
@@ -33,10 +33,10 @@ function local_to_global(i,p,Size,MPI)
 end
 
 
-abstract type FlowArr{T} end
+abstract type VeronaArr{T} end
 
 
-mutable struct ParVector3D{T <:Real} <: FlowArr{T}
+mutable struct ParVector3D{T <:Real} <: VeronaArr{T}
     # Parameter Vector
     arr::Array{T,4}
     size_X::Int64
@@ -46,18 +46,18 @@ mutable struct ParVector3D{T <:Real} <: FlowArr{T}
         arr = zeros(T, 5, Nx + 6, Ny + 6, Nz + 6)
         new(arr,Nx + 6 , Ny + 6, Nz + 6)
     end
-    function ParVector3D{T}(arr::FlowArr{T}) where {T}
+    function ParVector3D{T}(arr::VeronaArr{T}) where {T}
         new(Array{T}(arr.arr), arr.size_X, arr.size_Y, arr.size_Z)
     end
 end
 
-mutable struct CuParVector3D{T <:Real} <: FlowArr{T}
+mutable struct CuParVector3D{T <:Real} <: VeronaArr{T}
     # Parameter Vector
     arr::CuArray{T}
     size_X::Int64
     size_Y::Int64
     size_Z::Int64
-    function CuParVector3D{T}(arr::FlowArr{T}) where {T}
+    function CuParVector3D{T}(arr::VeronaArr{T}) where {T}
         new(CuArray{T}(arr.arr), arr.size_X, arr.size_Y, arr.size_Z)
     end
 
@@ -66,7 +66,7 @@ mutable struct CuParVector3D{T <:Real} <: FlowArr{T}
     end
 end
 
-function VectorLike(X::FlowArr{T}) where T
+function VectorLike(X::VeronaArr{T}) where T
     if typeof(X.arr) <: CuArray
         return CuParVector3D{T}(X.size_X - 6, X.size_Y - 6, X.size_Z - 6)
     else

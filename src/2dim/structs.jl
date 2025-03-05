@@ -30,10 +30,10 @@ function local_to_global(i,p,Size,MPI)
 end
 
 
-abstract type FlowArr{T} end
+abstract type VeronaArr{T} end
 
 
-mutable struct ParVector2D{T <:Real} <: FlowArr{T}
+mutable struct ParVector2D{T <:Real} <: VeronaArr{T}
     # Parameter Vector
     arr::Array{T,3}
     size_X::Int64
@@ -42,17 +42,17 @@ mutable struct ParVector2D{T <:Real} <: FlowArr{T}
         arr = zeros(T,4,Nx + 6,Ny + 6)
         new(arr,Nx + 6 ,Ny + 6)
     end
-    function ParVector2D{T}(arr::FlowArr{T}) where {T}
+    function ParVector2D{T}(arr::VeronaArr{T}) where {T}
         new(Array{T}(arr.arr),arr.size_X,arr.size_Y)
     end
 end
 
-mutable struct CuParVector2D{T <:Real} <: FlowArr{T}
+mutable struct CuParVector2D{T <:Real} <: VeronaArr{T}
     # Parameter Vector
     arr::CuArray{T}
     size_X::Int64
     size_Y::Int64
-    function CuParVector2D{T}(arr::FlowArr{T}) where {T}
+    function CuParVector2D{T}(arr::VeronaArr{T}) where {T}
         new(CuArray{T}(arr.arr),arr.size_X,arr.size_Y)
     end
 
@@ -61,7 +61,7 @@ mutable struct CuParVector2D{T <:Real} <: FlowArr{T}
     end
 end
 
-function VectorLike(X::FlowArr{T}) where T
+function VectorLike(X::VeronaArr{T}) where T
     if typeof(X.arr) <: CuArray
         return CuParVector2D{T}(X.size_X-6,X.size_Y-6)
     else
