@@ -162,7 +162,7 @@ end
 end
 
 
-function HARM_HLL(comm,P::FlowArr,XMPI::Int64,YMPI::Int64,
+function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,
                                     SizeX::Int64,SizeY::Int64,
                                     dt::T,dx::T,dy::T,
                                     Tmax::T,eos::EOS{T},drops::T,

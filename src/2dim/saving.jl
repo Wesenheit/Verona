@@ -1,5 +1,5 @@
 
-function SaveHDF5Gather(comm,P::FlowArr{T},XMPI::Int64,YMPI::Int64,name::String,to_save::Dict) where T
+function SaveHDF5Gather(comm,P::VeronaArr{T},XMPI::Int64,YMPI::Int64,name::String,to_save::Dict) where T
     size = MPI.Comm_size(comm)
     flat = vec(Array{T}( @view P.arr[:,4:end-3,4:end-3]))
     
