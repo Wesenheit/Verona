@@ -132,8 +132,7 @@ end
     Fy[5] = w*P[5]^2 + (eos.gamma - 1) * P[2]
 end
 
-
-@inline function LU_dec!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
+@inline function LU_dec_5D!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
 
     @inline function index(i, j)
         return (j - 1) * 5 + i
@@ -165,94 +164,44 @@ end
     end
 end
 
-@inline function LU_dec_pivot!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
+@inline function LU_dec_2D!(flat_matrix::AbstractVector{T}, target::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
+
     @inline function index(i, j)
-        # Column-major indexing for a 5x5 matrix
-        return (j - 1) * 5 + i
+        return (j - 1) * 2 + i
     end
 
-    # Use a statically sized mutable vector for the scaling factors to avoid dynamic allocation
-    row_norm = MVector{5, T}(undef)
-
-    # Compute the scaling vector for each row (row_norm[i] = 1 / max(|A[i, j]|))
-    for i in 1:5
-        absmax = zero(T)
-        for j in 1:5
-            temp = abs(flat_matrix[index(i, j)])
-            if temp > absmax
-                absmax = temp
-            end
-        end
-        if absmax == 0
-            error("LU_decompose(): row-wise singular matrix!")
-        end
-        row_norm[i] = one(T) / absmax
-    end
-
-    # LU decomposition using Crout's method with partial pivoting (scaled criterion)
-    for k in 1:5
-        # Find the pivot row by selecting the row with the largest scaled absolute value in column k
-        pivot = k
-        pivot_val = abs(flat_matrix[index(k, k)]) * row_norm[k]
-        for i in k+1:5
-            tmp = abs(flat_matrix[index(i, k)]) * row_norm[i]
-            if tmp > pivot_val
-                pivot_val = tmp
-                pivot = i
-            end
-        end
-
-        # If the pivot row is different from the current row, swap the rows in flat_matrix
-        if pivot != k
-            for j in 1:5
-                tmp = flat_matrix[index(k, j)]
-                flat_matrix[index(k, j)] = flat_matrix[index(pivot, j)]
-                flat_matrix[index(pivot, j)] = tmp
-            end
-            # Swap the corresponding entries in the target vector
-            tmp = target[k]
-            target[k] = target[pivot]
-            target[pivot] = tmp
-            # Also swap the scaling factors for consistency
-            tmp = row_norm[k]
-            row_norm[k] = row_norm[pivot]
-            row_norm[pivot] = tmp
-        end
-
-        # Perform elimination: update rows below the pivot row
-        for i in k+1:5
+    for k in 1:2
+        for i in k+1:2
             flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
-            for j in k+1:5
-                # Use fused multiply-add for improved accuracy
-                flat_matrix[index(i, j)] = fma(-flat_matrix[index(i, k)], flat_matrix[index(k, j)], flat_matrix[index(i, j)])
+            for j in k+1:2
+                flat_matrix[index(i, j)] -= flat_matrix[index(i, k)] * flat_matrix[index(k, j)]
             end
         end
     end
 
-    # Forward substitution: solve L*y = target (store result in x)
-    for i in 1:5
+    for i in 1:2
         x[i] = target[i]
         for j in 1:i-1
-            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+            x[i] -= flat_matrix[index(i, j)] * x[j]
         end
     end
 
-    # Backward substitution: solve U*x = y
-    for i in 5:-1:1
-        for j in i+1:5
-            x[i] = fma(-flat_matrix[index(i, j)], x[j], x[i])
+    for i in 2:-1:1
+        for j in i+1:2
+            x[i] -= flat_matrix[index(i, j)] * x[j]
         end
         x[i] /= flat_matrix[index(i, i)]
     end
 end
+
 
 @kernel inbounds = true function function_UtoP(@Const(U::AbstractArray{T}), P::AbstractArray{T},eos::Polytrope{T},n_iter::Int64,tol::T=1e-10) where T<:Real
     i, j, k = @index(Global, NTuple)
     il, jl, kl = @index(Local, NTuple)
 
     @uniform begin
-        N,M,L = @groupsize()
-        Nx,Ny,Nz = @ndrange()
+       N,M,L = @groupsize()
+       Nx,Ny,Nz = @ndrange()
     end
     
     Ploc = @localmem eltype(U) (5,N,M,L)
@@ -260,76 +209,260 @@ end
 
     
     for idx in 1:5
-        Ploc[idx,il,jl,kl] = P[idx,i,j,k]
-        Uloc[idx,il,jl,kl] = U[idx,i,j,k]
+       Ploc[idx,il,jl,kl] = P[idx,i,j,k]
+       Uloc[idx,il,jl,kl] = U[idx,i,j,k]
     end
-
+    
     #buff_out = @MVector zeros(T,4)
-    buff_out_t = @localmem eltype(U) (5,N,M,L)
-    buff_out = @view buff_out_t[:,il,jl,kl]
+    buff_out_t_2D = @localmem eltype(U) (2,N,M,L)
+    buff_out_2D   = @view buff_out_t_2D[:,il,jl,kl]
     
     #buff_fun = @MVector zeros(T,4)
-    buff_fun_t = @localmem eltype(U) (5,N,M,L)
-    buff_fun = @view buff_fun_t[:,il,jl,kl]
-    buff_jac = @MVector zeros(T,25)
+    buff_fun_t_2D = @localmem eltype(U) (2,N,M,L)
+    buff_fun_2D   = @view buff_fun_t_2D[:,il,jl,kl]
+    buff_jac_2D   = @MVector zeros(T,4)
+ 
+    #buff_out = @MVector zeros(T,4)
+    buff_out_t_5D = @localmem eltype(U) (5,N,M,L)
+    buff_out_5D   = @view buff_out_t_5D[:,il,jl,kl]
+    
+    #buff_fun = @MVector zeros(T,4)
+    buff_fun_t_5D = @localmem eltype(U) (5,N,M,L)
+    buff_fun_5D   = @view buff_fun_t_5D[:,il,jl,kl]
+    buff_jac_5D   = @MVector zeros(T,25)
 
     if i > 3 && i < Nx - 3 && j > 3 && j < Ny-3 && k > 3 && k < Nz-3
+	
+	#Conserved Variable
+	D   = Uloc[1,il,jl,kl]
+	Q_t = Uloc[2,il,jl,kl]
+	Q_x = Uloc[3,il,jl,kl]
+	Q_y = Uloc[4,il,jl,kl]
+	Q_z = Uloc[5,il,jl,kl]
+
+	#Useful Variables
+	S²  	  = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
+	γ 	      = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
+	w_small   = Ploc[1,il,jl,kl] + (eos.gamma)*Ploc[2,il,jl,kl]
+	v²        = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
+	W 	      = w_small*γ^2
+	W_max     = 1e30 #like in HARM        
+	W_min     = sqrt(S²) * (1 - tol)     
+    
+    #Convergence
+    total_convergence = false
+
+    #Initial condition, with v²<1
+	while S² / W^2 >= 1 && W < W_max
+	    W *= 10
+	end
+
+    #Additional useful values
+    v²     = min(S² / W^2, 1 - tol)
+    W_old  = W
+    v²_old = v²
+
+    #1DW METHOD
+    #NEWTON-RAPHSON METHOD
+    for _ in 1:n_iter
+        
+        if W < W_min
+            W = W_min
+        end
+
+        v²  = S² / W^2
+        
+        if v² < 0.0
+            v² = 0.0
+        elseif v² > 1 - tol
+            v² = 1 - tol
+        end	        
+        
+        buff_fun = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
+        buff_jac = 1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²) - ((eos.gamma - 1) / eos.gamma) * (W * (2 * S² / W^3) - D * (S² / (W^3 * sqrt(1 - v²))))
+        
+        ΔW = buff_fun / buff_jac
+        W_proposed = W - ΔW
+
+        if W_proposed < W_min
+            W = 0.5 * (W + W_min)
+        else
+            W = W_proposed
+        end
+   
+    
+        if ΔW < 0
+            ΔW = -ΔW
+        end  
+
+        if ΔW^2 < tol^2
+            total_convergence = true
+            break
+        end
+    
+    end
+
+    if !total_convergence
+        #Useful Variables for 2D
+        S²  	  = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
+        γ 	      = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
+        w_small   = Ploc[1,il,jl,kl] + (eos.gamma)*Ploc[2,il,jl,kl]
+        v²        = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
+        W 	      = w_small*γ^2
+        W_max     = 1e30 #like in HARM        
+        W_min     = sqrt(S²) * (1 - tol)     
+        
+        #Initial condition, with v²<1
+        while S² / W^2 >= 1 && W < W_max
+            W *= 10
+        end
+        #Additional useful values
+        v²     = min(S² / W^2, 1 - tol)
+        W_old  = W
+        v²_old = v²
+
+
+        #2D METHOD
+        #NEWTON-RAPHSON METHOD
+        for _ in 1:n_iter
+            W_old  = W
+            v²_old = v²
+
+
+            buff_fun_2D[1] = v² - S² / W^2
+            buff_fun_2D[2] = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
+
+            buff_jac_2D[1] = 2 * S² / W^3
+            buff_jac_2D[2] = 1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²)
+            buff_jac_2D[3] = 1
+            buff_jac_2D[4] = ((eos.gamma - 1) / eos.gamma) * (W - D / (2 * sqrt(1 - v²)))
+            
+            LU_dec_2D!(buff_jac_2D, buff_fun_2D, buff_out_2D)
+            
+            ΔW  = buff_out_2D[1]
+            Δv² = buff_out_2D[2]
+            α   = 1.0
+    
+            converged = false
+            
+            for _ in 1:5
+                W_candidate  = (sqrt(W - α * ΔW)^2)
+                v²_candidate = v² - α * Δv²
+
+                if W_candidate <= 0 || W_candidate > W_max
+                    W_candidate = W_old
+                end
+
+                if v²_candidate < 0
+                    v²_candidate = 0.0
+                elseif v²_candidate >= 1
+                    v²_candidate = 1.0 - tol
+                end
+
+                r1 = v²_candidate - S² / W_candidate^2
+                r2 = Q_t + W_candidate - ((eos.gamma - 1) / eos.gamma) * (W_candidate * (1 - v²_candidate) - D * sqrt(1 - v²_candidate))
+                err_candidate = r1^2 + r2^2
+
+                r1_old = v² - S² / W^2
+                r2_old = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
+                err_old = r1_old^2 + r2_old^2
+
+                if err_candidate <= err_old
+                    W = W_candidate
+                    v² = v²_candidate
+                    converged = true
+                    break
+                else
+                    α *= 0.5
+                end
+            end
+            
+            if !converged
+                W  = W_old
+                v² = v²_old
+            end
+
+            relW  = sqrt((W - W_old)^2) / max(abs(W_old), 1e-16)
+            relv² = sqrt((v² - v²_old)^2) / max(abs(v²_old), 1e-16)
+            if (relW + relv²) < tol
+                total_convergence = true
+                break
+            end
+        end
+    end
+    
+    if total_convergence 
+        v² = S² / W^2
+        γ  = 1/sqrt(1-v²)
+        Ploc[1,il,jl,kl] = D / γ
+        Ploc[2,il,jl,kl] = (W / γ^2 - D / γ) / eos.gamma
+        Ploc[3,il,jl,kl] = γ*Q_x/W
+        Ploc[4,il,jl,kl] = γ*Q_y/W
+        Ploc[5,il,jl,kl] = γ*Q_z/W
+    end
+
+    #5D METHOD
+    #NEWTON-RAPHSON METHOD
+    if !total_convergence
         for _ in 1:n_iter
 
             gam = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
             w = eos.gamma * Ploc[2,il,jl,kl] + Ploc[1,il,jl,kl] 
             
-            buff_fun[1] = gam * Ploc[1,il,jl,kl] - Uloc[1,il,jl,kl]
-            buff_fun[2] = (eos.gamma-1) * Ploc[2,il,jl,kl] - gam^2 * w - Uloc[2,il,jl,kl]
-            buff_fun[3] = Ploc[3,il,jl,kl] * gam * w - Uloc[3,il,jl,kl]
-            buff_fun[4] = Ploc[4,il,jl,kl] * gam * w - Uloc[4,il,jl,kl]
-            buff_fun[5] = Ploc[5,il,jl,kl] * gam * w - Uloc[5,il,jl,kl]            
+            buff_fun_5D[1] = gam * Ploc[1,il,jl,kl] - Uloc[1,il,jl,kl]
+            buff_fun_5D[2] = (eos.gamma-1) * Ploc[2,il,jl,kl] - gam^2 * w - Uloc[2,il,jl,kl]
+            buff_fun_5D[3] = Ploc[3,il,jl,kl] * gam * w - Uloc[3,il,jl,kl]
+            buff_fun_5D[4] = Ploc[4,il,jl,kl] * gam * w - Uloc[4,il,jl,kl]
+            buff_fun_5D[5] = Ploc[5,il,jl,kl] * gam * w - Uloc[5,il,jl,kl]            
 
 
 
-            buff_jac[1]  = gam
-            buff_jac[6]  = 0   
-            buff_jac[11] = Ploc[3,il,jl,kl] * Ploc[1,il,jl,kl]/gam
-            buff_jac[16] = Ploc[4,il,jl,kl] * Ploc[1,il,jl,kl]/gam
-            buff_jac[21] = Ploc[5,il,jl,kl] * Ploc[1,il,jl,kl]/gam  
+            buff_jac_5D[1]  = gam
+            buff_jac_5D[6]  = 0   
+            buff_jac_5D[11] = Ploc[3,il,jl,kl] * Ploc[1,il,jl,kl]/gam
+            buff_jac_5D[16] = Ploc[4,il,jl,kl] * Ploc[1,il,jl,kl]/gam
+            buff_jac_5D[21] = Ploc[5,il,jl,kl] * Ploc[1,il,jl,kl]/gam  
     
-            buff_jac[2]  = -gam^2
-            buff_jac[7]  = eos.gamma*(-gam^2) + eos.gamma - 1 
-            buff_jac[12] = -2*Ploc[3,il,jl,kl] * (w)
-            buff_jac[17] = -2*Ploc[4,il,jl,kl] * (w)
-            buff_jac[22] = -2*Ploc[5,il,jl,kl] * (w)
+            buff_jac_5D[2]  = -gam^2
+            buff_jac_5D[7]  = eos.gamma*(-gam^2) + eos.gamma - 1 
+            buff_jac_5D[12] = -2*Ploc[3,il,jl,kl] * (w)
+            buff_jac_5D[17] = -2*Ploc[4,il,jl,kl] * (w)
+            buff_jac_5D[22] = -2*Ploc[5,il,jl,kl] * (w)
            
-            buff_jac[3]  = Ploc[3,il,jl,kl] * gam  
-            buff_jac[8]  = eos.gamma * Ploc[3,il,jl,kl] * gam 
-            buff_jac[13] = Ploc[3,il,jl,kl] ^ 2 * w / gam + w * gam
-            buff_jac[18] = Ploc[3,il,jl,kl] * Ploc[4,il,jl,kl] * w / gam
-            buff_jac[23] = Ploc[3,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam          
+            buff_jac_5D[3]  = Ploc[3,il,jl,kl] * gam  
+            buff_jac_5D[8]  = eos.gamma * Ploc[3,il,jl,kl] * gam 
+            buff_jac_5D[13] = Ploc[3,il,jl,kl] ^ 2 * w / gam + w * gam
+            buff_jac_5D[18] = Ploc[3,il,jl,kl] * Ploc[4,il,jl,kl] * w / gam
+            buff_jac_5D[23] = Ploc[3,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam          
     
-            buff_jac[4]  = Ploc[4,il,jl,kl] * gam
-            buff_jac[9]  = eos.gamma * Ploc[4,il,jl,kl] * gam 
-            buff_jac[14] = Ploc[3,il,jl,kl] * Ploc[4,il,jl,kl] * w / gam
-            buff_jac[19] = Ploc[4,il,jl,kl]^2 * w / gam + w * gam
-            buff_jac[24] = Ploc[4,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam             
+            buff_jac_5D[4]  = Ploc[4,il,jl,kl] * gam
+            buff_jac_5D[9]  = eos.gamma * Ploc[4,il,jl,kl] * gam 
+            buff_jac_5D[14] = Ploc[3,il,jl,kl] * Ploc[4,il,jl,kl] * w / gam
+            buff_jac_5D[19] = Ploc[4,il,jl,kl]^2 * w / gam + w * gam
+            buff_jac_5D[24] = Ploc[4,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam             
 
-            buff_jac[5]  = Ploc[5,il,jl,kl] * gam
-            buff_jac[10] = eos.gamma * Ploc[5,il,jl,kl] * gam 
-            buff_jac[15] = Ploc[3,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
-            buff_jac[20] = Ploc[4,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
-            buff_jac[25] = Ploc[5,il,jl,kl] ^ 2 * w / gam + w * gam      
+            buff_jac_5D[5]  = Ploc[5,il,jl,kl] * gam
+            buff_jac_5D[10] = eos.gamma * Ploc[5,il,jl,kl] * gam 
+            buff_jac_5D[15] = Ploc[3,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
+            buff_jac_5D[20] = Ploc[4,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
+            buff_jac_5D[25] = Ploc[5,il,jl,kl] ^ 2 * w / gam + w * gam      
             
             
-            LU_dec_pivot!(buff_jac,buff_fun,buff_out)
+            LU_dec_5D!(buff_jac_5D,buff_fun_5D,buff_out_5D)
 
-            if buff_out[1]^2 + buff_out[2]^2 + buff_out[3]^2 + buff_out[4]^2 +buff_out[5]^2 < tol ^ 2
+            if buff_out_5D[1]^2 + buff_out_5D[2]^2 + buff_out_5D[3]^2 + buff_out_5D[4]^2 +buff_out_5D[5]^2 < tol ^ 2
+                total_convergence = true
                 break
             end
 
-            Ploc[1,il,jl,kl] = Ploc[1,il,jl,kl] - buff_out[1]
-            Ploc[2,il,jl,kl] = Ploc[2,il,jl,kl] - buff_out[2]
-            Ploc[3,il,jl,kl] = Ploc[3,il,jl,kl] - buff_out[3]
-            Ploc[4,il,jl,kl] = Ploc[4,il,jl,kl] - buff_out[4]
-            Ploc[5,il,jl,kl] = Ploc[5,il,jl,kl] - buff_out[5]
+            Ploc[1,il,jl,kl] = Ploc[1,il,jl,kl] - buff_out_5D[1]
+            Ploc[2,il,jl,kl] = Ploc[2,il,jl,kl] - buff_out_5D[2]
+            Ploc[3,il,jl,kl] = Ploc[3,il,jl,kl] - buff_out_5D[3]
+            Ploc[4,il,jl,kl] = Ploc[4,il,jl,kl] - buff_out_5D[4]
+            Ploc[5,il,jl,kl] = Ploc[5,il,jl,kl] - buff_out_5D[5]
         end
+    end
+
     end
     @synchronize
 
