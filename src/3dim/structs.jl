@@ -239,68 +239,73 @@ end
         Q_y = Uloc[4,il,jl,kl]
         Q_z = Uloc[5,il,jl,kl]
 
-        #Useful quantities
-        S²      = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
-        γ 	    = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
-        w_small = Ploc[1,il,jl,kl] + (eos.gamma)*Ploc[2,il,jl,kl]
-        v²      = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
-        W 	    = w_small*γ^2
-        W_max   = 1e30                      
-        W_min   = sqrt(S²) * (1 - tol)     
-    
         #Convergence indicators
         convergence_1DW        = false
         convergence_2D         = false
         convergence_5D         = false
         convergence_bisection  = false
 
-        #Initial condition, with v²<1
-        while S² / W^2 >= 1 && W < W_max
-            W *= 10
-        end
-
-        #Additional useful values
-        v²     = min(S² / W^2, 1 - tol)
-        W_old  = W
-        v²_old = v²
-
         #1DW METHOD (Noble et al. 2006)
-        for _ in 1:n_iter
-        
-            if W < W_min
-                W = W_min
+        if !convergence_1DW
+            #Useful quantities
+            S²      = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
+            γ 	    = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
+            w_small = Ploc[1,il,jl,kl] + (eos.gamma)*Ploc[2,il,jl,kl]
+            v²      = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
+            W 	    = w_small*γ^2
+            W_max   = 1e30                      
+            W_min   = sqrt(S²) * (1 + 1e-11)     
+
+            #Initial condition, with v²<1
+            while S² / W^2 >= 1 && W < W_max
+                W *= 10
             end
 
-            v²  = S² / W^2
+            #Additional useful values
+            v²     = min(S² / W^2, 1 - 1e-11)
+            W_old  = W
+            v²_old = v²        
+     
+            for _ in 1:n_iter
             
-            if v² < 0.0
-                v² = 0.0
-            elseif v² > 1 - tol
-                v² = 1 - tol
-            end	        
-            
-            buff_fun = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
-            buff_jac = 1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²) - ((eos.gamma - 1) / eos.gamma) * (W * (2 * S² / W^3) - D * (S² / (W^3 * sqrt(1 - v²))))
-            
-            ΔW = buff_fun / buff_jac
-            W_proposed = W - ΔW
+                if W < W_min
+                    W = W_min
+                end
 
-            if W_proposed < W_min
-                W = 0.5 * (W + W_min)
-            else
-                W = W_proposed
-            end
-    
-        
-            if ΔW < 0
-                ΔW = -ΔW
-            end  
+                v²  = S² / W^2
+                
+                if v² < 0.0
+                    v² = 0.0
+                elseif v² > 1 -  1e-11
+                    v² = 1 -  1e-11
+                end	        
+                
+                buff_fun = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
+                buff_jac = 1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²) - ((eos.gamma - 1) / eos.gamma) * (W * (2 * S² / W^3) - D * (S² / (W^3 * sqrt(1 - v²))))
+                
+                ΔW = buff_fun / buff_jac
+                W_proposed = W - ΔW
 
-            if ΔW^2 < tol^2
-                convergence_1DW = true
-                break
-            end
-        
+                if W_proposed < W_min
+                    W = 0.5 * (W + W_min)
+                else
+                    W = W_proposed
+                end
+            
+            
+                if ΔW < 0
+                    ΔW = -ΔW
+                end  
+
+                if ΔW^2 < tol^2   
+                    γ  = 1/sqrt(1- S² / W^2)
+                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W) 
+                        convergence_1DW = true
+                    end
+                    break
+                end
+		
+		    end
         end
         
         #2D METHOD (Noble et al. 2006)
@@ -312,7 +317,7 @@ end
             v²        = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
             W 	      = w_small*γ^2
             W_max     = 1e30 #like in HARM        
-            W_min     = sqrt(S²) * (1 - tol)     
+            W_min     = sqrt(S²) * (1 + 1e-11)     
             
             #Initial condition, with v²<1
             while S² / W^2 >= 1 && W < W_max
@@ -320,7 +325,7 @@ end
             end
 
             #Additional useful values
-            v²     = min(S² / W^2, 1 - tol)
+            v²     = min(S² / W^2, 1 - 1e-11)
             W_old  = W
             v²_old = v²
 
@@ -344,7 +349,7 @@ end
         
                 converged = false
                 
-                for _ in 1:10
+                for _ in 1:5
                     
                     W_candidate  = (sqrt(W - α * ΔW)^2)
                     v²_candidate = v² - α * Δv²
@@ -356,7 +361,7 @@ end
                     if v²_candidate < 0
                         v²_candidate = 0.0
                     elseif v²_candidate >= 1
-                        v²_candidate = 1.0 - tol
+                        v²_candidate = 1.0 -  1e-11
                     end
 
                     r1 = v²_candidate - S² / W_candidate^2
@@ -386,20 +391,13 @@ end
                 relv² = sqrt((v² - v²_old)^2) / max(abs(v²_old), tol^2)
                 
                 if (relW + relv²) < tol
-                    convergence_2D = true
+                    γ  = 1/sqrt(1- S² / W^2)
+                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
+                        convergence_2D = true
+                    end
                     break
                 end
             end
-        end
-    
-        if convergence_1DW || convergence_2D 
-            v² = S² / W^2
-            γ  = 1/sqrt(1-v²)
-            Ploc[1,il,jl,kl] = D / γ
-            Ploc[2,il,jl,kl] = (W / γ^2 - D / γ) / eos.gamma
-            Ploc[3,il,jl,kl] = γ*Q_x/W
-            Ploc[4,il,jl,kl] = γ*Q_y/W
-            Ploc[5,il,jl,kl] = γ*Q_z/W
         end
 
         #5D METHOD
@@ -444,12 +442,26 @@ end
                 buff_jac_5D[15] = Ploc[3,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
                 buff_jac_5D[20] = Ploc[4,il,jl,kl] * Ploc[5,il,jl,kl] * w / gam
                 buff_jac_5D[25] = Ploc[5,il,jl,kl] ^ 2 * w / gam + w * gam      
-                
+            
                 
                 LU_dec_5D!(buff_jac_5D,buff_fun_5D,buff_out_5D)
 
-                if buff_out_5D[1]^2 + buff_out_5D[2]^2 + buff_out_5D[3]^2 + buff_out_5D[4]^2 +buff_out_5D[5]^2 < tol ^ 2
-                    convergence_5D = true
+                if buff_out_5D[1]^2 + buff_out_5D[2]^2 + buff_out_5D[3]^2 + buff_out_5D[4]^2 + buff_out_5D[5]^2 < tol ^ 2
+                    if  isfinite(Ploc[1,il,jl,kl]) && isfinite(Ploc[2,il,jl,kl]) && isfinite(Ploc[3,il,jl,kl]) && isfinite(Ploc[4,il,jl,kl]) && isfinite(Ploc[5,il,jl,kl])
+                        convergence_5D = true
+                        Ploc[1,il,jl,kl] = max(1e-8,Ploc[1,il,jl,kl]) #DENISTY FLOOR
+                        Ploc[2,il,jl,kl] = max(1e-8,Ploc[2,il,jl,kl]) #INTERNAL ENERGY FLOOR
+                        
+                        #LORENTZ FACTOR LIMITER
+                        γ = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
+                        Ploc[3,il,jl,kl] = Ploc[3,il,jl,kl]/γ    
+                        Ploc[4,il,jl,kl] = Ploc[4,il,jl,kl]/γ 
+                        Ploc[5,il,jl,kl] = Ploc[5,il,jl,kl]/γ                          
+                        γ = min(γ,50)
+                        Ploc[3,il,jl,kl] = Ploc[3,il,jl,kl]*γ    
+                        Ploc[4,il,jl,kl] = Ploc[4,il,jl,kl]*γ 
+                        Ploc[5,il,jl,kl] = Ploc[5,il,jl,kl]*γ    
+                    end
                     break
                 end
 
@@ -460,22 +472,26 @@ end
                 Ploc[5,il,jl,kl] = Ploc[5,il,jl,kl] - buff_out_5D[5]
             end
         end
-    
+        
+        #1DW METHOD with bisection (last fallback - brute force) (Noble et al. 2006)
         if !convergence_1DW && !convergence_2D && !convergence_5D
             fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
             fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
             
             if fun_min*fun_max < 0 #It is assumed that the root is beetween W_min and W_max - should be!
-                while convergence_bisection == false
+                for _ in 1:250
                     fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
                     fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
                     
                     W_mid = 0.5 * (W_min + W_max)
                     fun_mid = Q_t + W_mid - ((eos.gamma - 1) / eos.gamma) * (W_mid * (1 - S² / W_mid^2) - D * sqrt(1 - S² / W_mid^2))
                     
-                    if fun_mid^2 < (tol)^2
-                        convergence_bisection = true
-                        W = W_mid
+                    if fun_mid^2 < (1e-5)^2
+                        W = W_mid       
+                        γ  = 1/sqrt(1- S² / W^2)                 
+                        if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
+                            convergence_bisection = true
+                        end
                         break
                     end
 
@@ -487,22 +503,31 @@ end
                 end
             end
         end
+
         
-        if convergence_bisection 
-            v² = S² / W^2
-            γ  = 1/sqrt(1-v²)
-            Ploc[1,il,jl,kl] = D / γ
-            Ploc[2,il,jl,kl] = (W / γ^2 - D / γ) / eos.gamma
+        if convergence_1DW || convergence_2D || convergence_bisection
+            v²  = S² / W^2
+            γ   = 1/sqrt(1-v²)
+            γ   = min(γ, 50)  			     #LORENTZ FACTOR LIMITER
+            rho = max(1e-8, D/γ) 		             #DENISTY FLOOR 
+            UU  = max(1e-8, (W / γ^2 - D / γ) / eos.gamma) #INTERNAL ENERGY FLOOR 
+            Ploc[1,il,jl,kl] = rho
+            Ploc[2,il,jl,kl] = UU
             Ploc[3,il,jl,kl] = γ*Q_x/W
             Ploc[4,il,jl,kl] = γ*Q_y/W
             Ploc[5,il,jl,kl] = γ*Q_z/W
         end
-    
+        
+        
+        #STOP CODE, WHEN DOES NOT CONVERGE
         if !convergence_1DW && !convergence_2D && !convergence_5D && !convergence_bisection
-            for idx in 1:5
-                Ploc[idx,i,j,k] = P[idx,il,jl,kl]
-            end    
+            Ploc[1,il,jl,kl] = nan
+            Ploc[2,il,jl,kl] = nan
+            Ploc[3,il,jl,kl] = nan
+            Ploc[4,il,jl,kl] = nan
+            Ploc[5,il,jl,kl] = nan
         end
+                        
     end
 
     @synchronize
