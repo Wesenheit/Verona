@@ -254,7 +254,7 @@ end
             v²      = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
             W 	    = w_small*γ^2
             W_max   = 1e30                      
-            W_min   = sqrt(S²) * (1 + 1e-11)     
+            W_min   = sqrt(S²) * (1 + 1e-15)     
 
             #Initial condition, with v²<1
             while S² / W^2 >= 1 && W < W_max
@@ -262,7 +262,7 @@ end
             end
 
             #Additional useful values
-            v²     = min(S² / W^2, 1 - 1e-11)
+            v²     = min(S² / W^2, 1 - 1e-15)
             W_old  = W
             v²_old = v²        
      
@@ -276,8 +276,8 @@ end
                 
                 if v² < 0.0
                     v² = 0.0
-                elseif v² > 1 -  1e-11
-                    v² = 1 -  1e-11
+                elseif v² > 1 -  1e-15
+                    v² = 1 -  1e-15
                 end	        
                 
                 buff_fun = Q_t + W - ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
@@ -299,7 +299,7 @@ end
 
                 if ΔW^2 < tol^2   
                     γ  = 1/sqrt(1- S² / W^2)
-                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W) 
+                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W) 
                         convergence_1DW = true
                     end
                     break
@@ -317,7 +317,7 @@ end
             v²        = ((Ploc[3,il,jl,kl])^2 + (Ploc[4,il,jl,kl])^2 + (Ploc[5,il,jl,kl])^2)/γ^2
             W 	      = w_small*γ^2
             W_max     = 1e30 #like in HARM        
-            W_min     = sqrt(S²) * (1 + 1e-11)     
+            W_min     = sqrt(S²) * (1 + 1e-15)     
             
             #Initial condition, with v²<1
             while S² / W^2 >= 1 && W < W_max
@@ -325,7 +325,7 @@ end
             end
 
             #Additional useful values
-            v²     = min(S² / W^2, 1 - 1e-11)
+            v²     = min(S² / W^2, 1 - 1e-15)
             W_old  = W
             v²_old = v²
 
@@ -349,7 +349,7 @@ end
         
                 converged = false
                 
-                for _ in 1:5
+                for _ in 1:10
                     
                     W_candidate  = (sqrt(W - α * ΔW)^2)
                     v²_candidate = v² - α * Δv²
@@ -361,7 +361,7 @@ end
                     if v²_candidate < 0
                         v²_candidate = 0.0
                     elseif v²_candidate >= 1
-                        v²_candidate = 1.0 -  1e-11
+                        v²_candidate = 1.0 -  1e-15
                     end
 
                     r1 = v²_candidate - S² / W_candidate^2
@@ -392,7 +392,7 @@ end
                 
                 if (relW + relv²) < tol
                     γ  = 1/sqrt(1- S² / W^2)
-                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
+                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0  && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
                         convergence_2D = true
                     end
                     break
@@ -491,7 +491,7 @@ end
                     if fun_mid^2 < (1e-6)^2
                         W = W_mid       
                         γ  = 1/sqrt(1- S² / W^2)                 
-                        if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
+                        if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0  && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
                             convergence_bisection = true
                         end
                         break
