@@ -521,11 +521,11 @@ end
         
         #STOP CODE, WHEN DOES NOT CONVERGE
         if !convergence_1DW && !convergence_2D && !convergence_5D && !convergence_bisection
-            Ploc[1,il,jl,kl] = nan
-            Ploc[2,il,jl,kl] = nan
-            Ploc[3,il,jl,kl] = nan
-            Ploc[4,il,jl,kl] = nan
-            Ploc[5,il,jl,kl] = nan
+            Ploc[1,il,jl,kl] = sqrt(-1)
+            Ploc[2,il,jl,kl] = sqrt(-1)
+            Ploc[3,il,jl,kl] = sqrt(-1)
+            Ploc[4,il,jl,kl] = sqrt(-1)
+            Ploc[5,il,jl,kl] = sqrt(-1)
         end
                         
     end
