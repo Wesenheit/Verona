@@ -475,18 +475,20 @@ end
         
         #1DW METHOD with bisection (last fallback - brute force) (Noble et al. 2006)
         if !convergence_1DW && !convergence_2D && !convergence_5D
+            W_min  = sqrt(S²)*(1+1e-15)
+            W_max  = 1e50
             fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
             fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
             
             if fun_min*fun_max < 0 #It is assumed that the root is beetween W_min and W_max - should be!
-                for _ in 1:250
+                for _ in 1:500
                     fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
                     fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
                     
                     W_mid = 0.5 * (W_min + W_max)
                     fun_mid = Q_t + W_mid - ((eos.gamma - 1) / eos.gamma) * (W_mid * (1 - S² / W_mid^2) - D * sqrt(1 - S² / W_mid^2))
                     
-                    if fun_mid^2 < (1e-5)^2
+                    if fun_mid^2 < (1e-6)^2
                         W = W_mid       
                         γ  = 1/sqrt(1- S² / W^2)                 
                         if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 > 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
