@@ -183,3 +183,17 @@ function PPM(q_im2::T, q_im1::T, q_i::T, q_ip1::T, q_ip2::T) where T
     
     return qr_i, ql_ip1
 end
+
+
+function reconstruction(method::Val{M}, q_im2::T, q_im1::T, q_i::T, q_ip1::T, q_ip2::T) where {M, T}
+    if M === :MINMOD
+        return MINMOD(q_im1, q_i, q_ip1)
+    elseif M === :WENOZ
+        return WENOZ(q_im2, q_im1, q_i, q_ip1, q_ip2)
+    elseif M === :PPM
+        return PPM(q_im2, q_im1, q_i, q_ip1, q_ip2)
+    else
+        error("Unsupported reconstruction method: ", M)
+    end
+end
+
