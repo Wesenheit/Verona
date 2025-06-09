@@ -240,13 +240,13 @@ end
         Q_z = Uloc[5,il,jl,kl]
 
         #Convergence indicators
-        convergence_1DW        = false
-        convergence_2D         = false
-        convergence_5D         = false
-        convergence_bisection  = false
+        convergence_1DW          = false
+        convergence_2D           = false
+        convergence_5D           = false
+        convergence_bisection    = false
 
         #1DW METHOD (Noble et al. 2006)
-        if !convergence_1DW
+        if !convergence_1DW 
             #Useful quantities
             S²      = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
             γ 	    = sqrt(Ploc[3,il,jl,kl]^2 + Ploc[4,il,jl,kl]^2 +Ploc[5,il,jl,kl]^2 + 1)
@@ -298,10 +298,7 @@ end
                 end  
 
                 if ΔW^2 < tol^2   
-                    γ  = 1/sqrt(1- S² / W^2)
-                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0 && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W) 
-                        convergence_1DW = true
-                    end
+                    convergence_1DW = true
                     break
                 end
 		
@@ -391,10 +388,7 @@ end
                 relv² = sqrt((v² - v²_old)^2) / max(abs(v²_old), tol^2)
                 
                 if (relW + relv²) < tol
-                    γ  = 1/sqrt(1- S² / W^2)
-                    if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0  && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
                         convergence_2D = true
-                    end
                     break
                 end
             end
@@ -475,44 +469,51 @@ end
         
         #1DW METHOD with bisection (last fallback - brute force) (Noble et al. 2006)
         if !convergence_1DW && !convergence_2D && !convergence_5D
-            W_min  = sqrt(S²)*(1+1e-15)
-            W_max  = 1e50
-            fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
-            fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
+            S² = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
+            W_min = max(1e-15, sqrt(S²))     
+            W_max = W_min * 10.0
+            fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma)*(W_min*(1 - S²/W_min^2) - D*sqrt(max(0.0,1 - S²/W_min^2)))
+            fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma)*(W_max*(1 - S²/W_max^2) - D*sqrt(max(0.0,1 - S²/W_max^2)))           
+            count = 0
+            while fun_min*fun_max > 0 && count < 100
+                W_max  *= 10.0
+                fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma)*(W_max*(1 - S²/W_max^2) - D*sqrt(max(0.0,1 - S²/W_max^2)))
+                count += 1
+            end       
             
-            if fun_min*fun_max < 0 #It is assumed that the root is beetween W_min and W_max - should be!
-                for _ in 1:500
-                    fun_min = Q_t + W_min - ((eos.gamma - 1) / eos.gamma) * (W_min * (1 - S² / W_min^2) - D * sqrt(1 - S² / W_min^2))
-                    fun_max = Q_t + W_max - ((eos.gamma - 1) / eos.gamma) * (W_max * (1 - S² / W_max^2) - D * sqrt(1 - S² / W_max^2))
-                    
-                    W_mid = 0.5 * (W_min + W_max)
-                    fun_mid = Q_t + W_mid - ((eos.gamma - 1) / eos.gamma) * (W_mid * (1 - S² / W_mid^2) - D * sqrt(1 - S² / W_mid^2))
+            if fun_min*fun_max <= 0
+                for i in 1:(n_iter*10)
+                    W_mid = 0.5*(W_min + W_max)
+                    fun_mid = Q_t + W_mid - ((eos.gamma - 1) / eos.gamma)*(W_mid*(1 - S²/W_mid^2) - D*sqrt(max(0.0,1 - S²/W_mid^2)))     
                     
                     if fun_mid^2 < (1e-6)^2
-                        W = W_mid       
-                        γ  = 1/sqrt(1- S² / W^2)                 
-                        if D/γ >0 && (W / γ^2 - D / γ)/eos.gamma > 0 && S² / W^2 >= 0  && S² / W^2 < 1 && isfinite(γ*Q_x/W) && isfinite(γ*Q_y/W) && isfinite(γ*Q_z/W)
-                            convergence_bisection = true
-                        end
+                        convergence_bisection = true
+                        W = W_mid
                         break
                     end
 
                     if fun_min * fun_mid < 0
-                        W_max = W_mid
+                        W_max  = W_mid
+                        fun_max = fun_mid
                     else
-                        W_min = W_mid
-                    end   
+                        W_min  = W_mid
+                        fun_min = fun_mid
+                    end
+                    W = W_mid
                 end
+            else
+            #### BE CAREFUL ####
+            # W = W_max
+            # convergence_bisection = true
             end
         end
-
         
         if convergence_1DW || convergence_2D || convergence_bisection
             v²  = S² / W^2
             γ   = 1/sqrt(1-v²)
-            γ   = min(γ, 50)  			     #LORENTZ FACTOR LIMITER
-            rho = max(1e-8, D/γ) 		             #DENISTY FLOOR 
-            UU  = max(1e-8, (W / γ^2 - D / γ) / eos.gamma) #INTERNAL ENERGY FLOOR 
+            γ   = min(γ, 50)  			                     #LORENTZ FACTOR LIMITER
+            rho = max(1e-8, D/γ) 		                     #DENSITY FLOOR 
+            UU  = max(1e-8, (W / γ^2 - D / γ) / eos.gamma)   #INTERNAL ENERGY FLOOR 
             Ploc[1,il,jl,kl] = rho
             Ploc[2,il,jl,kl] = UU
             Ploc[3,il,jl,kl] = γ*Q_x/W
