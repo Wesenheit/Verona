@@ -290,7 +290,9 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
             i+=1
             thres_to_dump += drops
             if MPI.Comm_rank(comm) == 0
-                println(t," elapsed: ",time() - t0, " s")
+                elapsed = time()-t0
+                println(round(t,sigdigits = 3)," elapsed: ",round(elapsed,sigdigits = 3), " s")
+                println("speed: ",round(P.size_X * P.size_Y * P.size_Z * drops/dt * 1 / elapsed * 10^(-6),sigdigits = 3)," zones [10^6/s]")
                 t0 = time()
             end
             to_save = Dict("T"=>t, "grid"=>[dx,dy,dz])

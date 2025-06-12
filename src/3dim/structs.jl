@@ -22,7 +22,7 @@ using HDF5
 # P4 = uy four-velocity in y
 # P5 = uz four-velocity in z
 
-function local_to_global(i,p,Size,MPI)
+@inline function local_to_global(i,p,Size,MPI)
     if p == 0
         return i
     elseif p > 0 && p < MPI-1 && (p < 4 || px > Size-3) 
