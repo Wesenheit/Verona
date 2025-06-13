@@ -224,7 +224,7 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
     
     to_save = Dict("T"=>t, "grid"=>[dx,dy])
     name = out_dir * "/dump"*string(i)*".h5"
-    SaveHDF5Gather(comm,P,XMPI,YMPI,ZMPI,name,to_save) #save initial timestep as 0th dump
+    SaveHDF5Parallel(comm,P,XMPI,YMPI,ZMPI,name,to_save) #save initial timestep as 0th dump
 
     while t < Tmax
         if length(kwargs) > 2
@@ -297,7 +297,7 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
             end
             to_save = Dict("T"=>t, "grid"=>[dx,dy,dz])
             name = out_dir * "/dump"*string(i)*".h5"
-            SaveHDF5Gather(comm,P,XMPI,YMPI,ZMPI,name,to_save)
+            SaveHDF5Parallel(comm,P,XMPI,YMPI,ZMPI,name,to_save)
         end
     end    
     return i
