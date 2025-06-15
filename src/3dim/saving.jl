@@ -93,15 +93,15 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     HDF5.h5p_close(xfer_plist)
     HDF5.h5d_close(dset)
     
-    # Save additional metadata (only rank 0)
-    if rank == 0
-        for (key, val) in to_save
-            HDF5.h5write(fid, key, val)
-        end
-    end
-    
-    # Close file and property list
     HDF5.h5f_close(fid)
     HDF5.h5p_close(fapl)
+    MPI.Barrier(comm)
+    if rank == 0
+        file = h5open(name,"r+")
+        for elem in keys(to_save)
+            write(file,elem,to_save[elem])
+        end
+        close(file)
+    end
 end
 
