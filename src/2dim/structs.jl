@@ -19,16 +19,6 @@ using HDF5
 # P3 = ux four-velocity in x
 # P4 = uy four-velocity in y
 
-function local_to_global(i,p,Size,MPI)
-    if p == 0
-        return i
-    elseif p > 0 && p < MPI-1 && (px < 4 || px > Size-3) 
-        return 0
-    else
-        return i + p * (Size - 6)
-    end
-end
-
 
 abstract type VeronaArr{T} end
 

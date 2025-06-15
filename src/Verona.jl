@@ -3,6 +3,7 @@ module Verona
     include("1dim/Verona1D.jl")
     include("2dim/Verona2D.jl")
     include("3dim/Verona3D.jl")
+    include("utils.jl")
 
     export Verona1D
     export Verona2D

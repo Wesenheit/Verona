@@ -45,7 +45,7 @@ end
     UL = @view UL_arr[:,il,jl,kl]
 
 
-    if i > 2 && i < Nx - 2 && j > 2 && j < Ny - 2 && k > 2 && k < Nz-2
+    if i > 2 && i < Nx - 2 && j > 2 && j < Ny - 1 && k > 2 && k < Nz-1
         for idx in 1:5
             if dim == x
                 q_i = P[idx,i,j,k]
@@ -71,7 +71,7 @@ end
         end
     end
 
-    if i > 2 && j > 2 && k > 2 && j < Nx-2 && j < Ny-2 && k < Nz-2
+    if i > 1 && j > 1 && k > 1 && j < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:5
             if dim == x
                 q_i = P[idx,i+1,j,k]
@@ -99,7 +99,7 @@ end
     end
     
 
-    if i > 2 && j > 2 && k > 2 && i < Nx-1 && j < Ny-1 && k < Nz-1
+    if i > 2 && j > 2 && k > 2 && i < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:2
             PL[idx] = max(floor,PL[idx])
             PR[idx] = max(floor,PR[idx])
@@ -159,7 +159,7 @@ end
     i, j, k = @index(Global, NTuple)    
     Nx,Ny,Nz = @uniform @ndrange()
     
-    if i > 3 && j > 3 && k > 3 && i < Nx-2 && j < Ny-2 && k < Nz-2
+    if i > 3 && j > 3 && k > 3 && i < Nx-3 && j < Ny-3 && k < Nz-3
         for idx in 1:5
             Ubuff[idx,i,j,k] = U[idx,i,j,k] - dt/dx * (Fx[idx,i,j,k] - Fx[idx,i-1,j,k]) - dt/dy * (Fy[idx,i,j,k] - Fy[idx,i,j-1,k]) - dt/dz * (Fz[idx,i,j,k] - Fz[idx,i,j,k-1])
         end

@@ -46,9 +46,9 @@ Gamma0::Type = 10.
 for i in 1:P.size_X
     for j in 1:P.size_Y
         for k in 1:P.size_Z
-            i_g = Verona3D.local_to_global(i,idx,P.size_X,MPI_X)
-            j_g = Verona3D.local_to_global(j,idy,P.size_Y,MPI_Y)
-            k_g = Verona3D.local_to_global(k,idz,P.size_Z,MPI_Z)
+            i_g = Verona.local_to_global(i,idx,P.size_X,MPI_X)
+            j_g = Verona.local_to_global(j,idy,P.size_Y,MPI_Y)
+            k_g = Verona.local_to_global(k,idz,P.size_Z,MPI_Z)
             if i_g == 0 || j_g == 0 || k_g == 0
                 continue
             end

@@ -37,8 +37,8 @@ dy::Type = 2*box_Y/tot_Y
 Gamma0::Type = 10.
 for i in 1:P.size_X
     for j in 1:P.size_Y
-        i_g = Verona2D.local_to_global(i,idx,P.size_X,MPI_X)
-        j_g = Verona2D.local_to_global(j,idy,P.size_Y,MPI_Y)
+        i_g = Verona.local_to_global(i,idx,P.size_X,MPI_X)
+        j_g = Verona.local_to_global(j,idy,P.size_Y,MPI_Y)
         if i_g == 0 || j_g == 0 
             continue
         end
