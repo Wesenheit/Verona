@@ -40,6 +40,10 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     local_data = @view P.arr[:, 4:end-3, 4:end-3, 4:end-3]
     local_data = Array(local_data)  # ensure memory is contiguous
     
+    if any(isnan.(local_data))
+        throw("Nan in matrix")
+    end
+    
     global_size_X = XMPI * (P.size_X - 6)
     global_size_Y = YMPI * (P.size_Y - 6)
     global_size_Z = ZMPI * (P.size_Z - 6)
