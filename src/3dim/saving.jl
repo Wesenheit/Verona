@@ -38,7 +38,7 @@ end
 function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int, name::String, to_save::Dict) where {T <: Real}
     rank = MPI.Comm_rank(comm)
     local_data = @view P.arr[:, 4:end-3, 4:end-3, 4:end-3]
-    local_data = Array(local_data)  # ensure memory is contiguous
+    local_data = permutedims(Array(local_data),(4,3,2,1))  # ensure memory is contiguous
     
     if any(isnan.(local_data))
         throw("Nan in matrix")
@@ -63,7 +63,7 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     fid = HDF5.h5f_create(name, HDF5.H5F_ACC_TRUNC, HDF5.H5P_DEFAULT, fapl)
     
     # Define global dimensions
-    global_dims = Vector{HDF5.hsize_t}([5, global_size_X, global_size_Y, global_size_Z])
+    global_dims = Vector{HDF5.hsize_t}(reverse([5, global_size_X, global_size_Y, global_size_Z]))
     
     # Create filespace
     filespace = HDF5.h5s_create_simple(4, global_dims, global_dims)
