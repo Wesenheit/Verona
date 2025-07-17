@@ -8,7 +8,7 @@ const z = UInt8(3)
     P[2,i,j,k] = max(P[2,i,j,k],floor)
 end
 
-@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T <: Real
+@kernel inbounds = true function function_Fluxes(@Const(P::AbstractArray{T}),P_stagger::AbstractArray{T},eos::Polytrope{T},floor::T,Fglob::AbstractArray{T},dim::UInt8) where T <: Real
     i, j, k = @index(Global, NTuple)
     il, jl,kl = @index(Local, NTuple)
    
@@ -21,8 +21,8 @@ end
     ###parameters on the grid 
     # sometimes it is more beneficiant to put some values in the shared memory, sometimes it is more beneficient to put them in registers
     
-    PL_arr = @localmem eltype(P) (5,N, M, L)
-    PR_arr = @localmem eltype(P) (5,N, M, L)
+    PL_arr = @localmem eltype(P) (8,N, M, L)
+    PR_arr = @localmem eltype(P) (8,N, M, L)
 
     PL = @view PL_arr[:,il,jl,kl]
     PR = @view PR_arr[:,il,jl,kl]
@@ -48,19 +48,19 @@ end
     if i > 2 && i < Nx - 2 && j > 2 && j < Ny - 1 && k > 2 && k < Nz-1
         for idx in 1:5
             if dim == x
-                q_i = P[idx,i,j,k]
+                q_i =   P[idx,i,j,k]
                 q_im1 = P[idx,i-1,j,k]
                 q_im2 = P[idx,i-2,j,k]
                 q_ip1 = P[idx,i+1,j,k]
                 q_ip2 = P[idx,i+2,j,k]
             elseif dim == y
-                q_i = P[idx,i,j,k]
+                q_i =   P[idx,i,j,k]
                 q_im1 = P[idx,i,j-1,k]
                 q_im2 = P[idx,i,j-2,k]
                 q_ip1 = P[idx,i,j+1,k]
                 q_ip2 = P[idx,i,j+2,k]
             else
-                q_i = P[idx,i,j,k]
+                q_i =   P[idx,i,j,k]
                 q_im1 = P[idx,i,j,k-1]
                 q_im2 = P[idx,i,j,k-2]
                 q_ip1 = P[idx,i,j,k+1]
@@ -69,33 +69,100 @@ end
             Q_D,Q_U = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
             PL[idx] = Q_U 
         end
+
+        for idx in 1:3
+            if dim == x && idx==1
+                PL[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == y && idx==2
+                PL[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == z && idx==3
+                PL[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == x
+                q_i   = 1/2 *(P_stagger[idx,i+1,j,k] + P_stagger[idx,i,j,k])   #P[idx,i,j,k]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i-1,j,k]) #P[idx,i-1,j,k]
+                q_im2 = 1/2 *(P_stagger[idx,i-1,j,k] + P_stagger[idx,i-2,j,k]) #P[idx,i-2,j,k]
+                q_ip1 = 1/2 *(P_stagger[idx,i+1,j,k] + P_stagger[idx,i+2,j,k]) #P[idx,i+1,j,k]
+                q_ip2 = 1/2 *(P_stagger[idx,i+2,j,k] + P_stagger[idx,i+3,j,k]) #P[idx,i+2,j,k]
+                Q_D,Q_U = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PL[idx+5] = Q_U 
+            elseif dim == y
+                q_i   = 1/2 *(P_stagger[idx,i,j+1,k] + P_stagger[idx,i,j,k])   #P[idx,i,j,k]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i,j-1,k]) #P[idx,i,j-1,k]
+                q_im2 = 1/2 *(P_stagger[idx,i,j-1,k] + P_stagger[idx,i,j-2,k]) #P[idx,i,j-2,k]
+                q_ip1 = 1/2 *(P_stagger[idx,i,j+1,k] + P_stagger[idx,i,j+2,k]) #P[idx,i,j+1,k]
+                q_ip2 = 1/2 *(P_stagger[idx,i,j+2,k] + P_stagger[idx,i,j+3,k]) #P[idx,i,j+2,k]
+                Q_D,Q_U = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PL[idx+5] = Q_U 
+            else dim ==z
+                q_i   = 1/2 *(P_stagger[idx,i,j,k+1] + P_stagger[idx,i,j,k])   #P[idx,i,j,k]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i,j,k-1]) #P[idx,i,j,k-1]
+                q_im2 = 1/2 *(P_stagger[idx,i,j,k-1] + P_stagger[idx,i,j,k-2]) #P[idx,i,j,k-2]
+                q_ip1 = 1/2 *(P_stagger[idx,i,j,k+1] + P_stagger[idx,i,j,k+2]) #P[idx,i,j,k+1]
+                q_ip2 = 1/2 *(P_stagger[idx,i,j,k+2] + P_stagger[idx,i,j,k+3]) #P[idx,i,j,k+2]
+                Q_D,Q_U = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PL[idx+5] = Q_U 
+            end
+        end
     end
 
     if i > 1 && j > 1 && k > 1 && j < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:5
             if dim == x
-                q_i = P[idx,i+1,j,k]
+                q_i =   P[idx,i+1,j,k]
                 q_im1 = P[idx,i,j,k]
                 q_im2 = P[idx,i-1,j,k]
                 q_ip1 = P[idx,i+2,j,k]
                 q_ip2 = P[idx,i+3,j,k]
             elseif dim == y
-                q_i = P[idx,i,j+1,k]
+                q_i =   P[idx,i,j+1,k]
                 q_im1 = P[idx,i,j,k]
                 q_im2 = P[idx,i,j-1,k]
                 q_ip1 = P[idx,i,j+2,k]
                 q_ip2 = P[idx,i,j+3,k]
             else
-                q_i = P[idx,i,j,k + 1]
+                q_i =   P[idx,i,j,k + 1]
                 q_im1 = P[idx,i,j,k]
                 q_im2 = P[idx,i,j,k-1]
                 q_ip1 = P[idx,i,j,k+2]
                 q_ip2 = P[idx,i,j,k+3]
             end
-
             Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
             PR[idx] = Q_D
-        end
+        end   
+
+        for idx in 1:3
+            if     dim == x && idx==1
+                PR[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == y && idx==2
+                PR[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == z && idx==3
+                PR[idx+5] = P_stagger[idx,i,j,k]
+            elseif dim == x
+                q_i =   1/2 *(P_stagger[idx,i+1,j,k] + P_stagger[idx,i+2,j,k]) #P[idx,i+1,j,k]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i+1,j,k]) #P[idx,i,j,k]
+                q_im2 = 1/2 *(P_stagger[idx,i-1,j,k] + P_stagger[idx,i,j,k])   #P[idx,i-1,j,k]
+                q_ip1 = 1/2 *(P_stagger[idx,i+2,j,k] + P_stagger[idx,i+3,j,k]) #P[idx,i+2,j,k]
+                q_ip2 = 1/2 *(P_stagger[idx,i+3,j,k] + P_stagger[idx,i+4,j,k]) #P[idx,i+3,j,k]
+                Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PR[idx+5] = Q_D
+            elseif dim == y
+                q_i =   1/2 *(P_stagger[idx,i,j+1,k] + P_stagger[idx,i,j+2,k]) #P[idx,i,j+1,k]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i,j+1,k]) #P[idx,i,j,k]
+                q_im2 = 1/2 *(P_stagger[idx,i,j-1,k] + P_stagger[idx,i,j,k])   #P[idx,i,j-1,k]
+                q_ip1 = 1/2 *(P_stagger[idx,i,j+2,k] + P_stagger[idx,i,j+3,k]) #P[idx,i,j+2,k]
+                q_ip2 = 1/2 *(P_stagger[idx,i,j+3,k] + P_stagger[idx,i,j+4,k]) #P[idx,i,j+3,k]
+                Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PR[idx+5] = Q_D
+            else
+                q_i =   1/2 *(P_stagger[idx,i,j,k+1] + P_stagger[idx,i,j,k+2]) #P[idx,i,j,k+1]
+                q_im1 = 1/2 *(P_stagger[idx,i,j,k]   + P_stagger[idx,i,j,k+1]) #P[idx,i,j,k]
+                q_im2 = 1/2 *(P_stagger[idx,i,j,k-1] + P_stagger[idx,i,j,k])   #P[idx,i,j,k-1]
+                q_ip1 = 1/2 *(P_stagger[idx,i,j,k+2] + P_stagger[idx,i,j,k+3]) #P[idx,i,j,k+2]
+                q_ip2 = 1/2 *(P_stagger[idx,i,j,k+3] + P_stagger[idx,i,j,k+4]) #P[idx,i,j,k+3]
+                Q_D,Q_L = WENOZ(q_im2,q_im1,q_i,q_ip1,q_ip2)
+                PR[idx+5] = Q_D
+            end
+        end     
     end
     
 
@@ -117,28 +184,17 @@ end
             function_PtoFz(PR,FR,eos)
             function_PtoFz(PL,FL,eos)
         end
-    
-        lorL = sqrt(PL[3]^2 + PL[4]^2 + PL[5]^2 + 1)
-        lorR = sqrt(PR[3]^2 + PR[4]^2 + PR[5]^2 + 1)
-        if dim == x
-            vL = PL[3] / lorL
-            vR = PR[3] / lorR
-        elseif dim == y
-            vL = PL[4] / lorL
-            vR = PR[4] / lorR
-        elseif dim == z
-            vL = PL[5] / lorL
-            vR = PR[5] / lorR
-        end
-
-        CL = SoundSpeed(PL[1],PL[2],eos)
-        CR = SoundSpeed(PR[1],PR[2],eos)
         
-        sigma_S_L = CL^2 / ( lorL^2 * (1-CL^2))
-        sigma_S_R = CR^2 / ( lorR^2 * (1-CR^2))
-
-        C_max_X = max( (vL + sqrt(sigma_S_L * (1-vL^2 + sigma_S_L)) ) / (1 + sigma_S_L), (vR + sqrt(sigma_S_R * (1-vR^2 + sigma_S_R)) ) / (1 + sigma_S_R)) # velocity composition
-        C_min_X = -min( (vL - sqrt(sigma_S_L * (1-vL^2 + sigma_S_L)) ) / (1 + sigma_S_L), (vR - sqrt(sigma_S_R * (1-vR^2 + sigma_S_R)) ) / (1 + sigma_S_R)) # velocity composition
+        #MHD WAVES
+        if dim == x
+            C_max_X, C_min_X = cmin_cmax_MHD(PL, PR, 1, eos)
+        elseif dim == y
+            C_max_X, C_min_X = cmin_cmax_MHD(PL, PR, 2, eos)
+        elseif dim == z
+            C_max_X, C_min_X = cmin_cmax_MHD(PL, PR, 3, eos)
+        end
+        
+        #HLLE FLUX
         if C_max_X < 0 
             for idx in 1:5
                 Fglob[idx,i,j,k] =  FR[idx]
