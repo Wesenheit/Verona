@@ -38,7 +38,7 @@ end
 function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int, name::String, to_save::Dict) where {T <: Real}
     rank = MPI.Comm_rank(comm)
     local_data = @view P.arr[:, 4:end-3, 4:end-3, 4:end-3]
-    local_data = permutedims(Array(local_data),[4,3,2,1])
+    local_org = Array(local_data)
     
     if any(isnan.(local_data))
         throw("Nan in matrix")
@@ -82,7 +82,7 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     HDF5.h5s_select_hyperslab(filespace, HDF5.H5S_SELECT_SET, offset, stride, count, block)
     
     # Create memory space matching local data dimensions
-    local_dims = Vector{HDF5.hsize_t}(collect(size(local_data)))
+    local_dims = reverse(Vector{HDF5.hsize_t}(collect(size(local_org))))
     memspace = HDF5.h5s_create_simple(length(local_dims), local_dims, local_dims)
     
     # Create data transfer property list for collective I/O
@@ -90,7 +90,7 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     HDF5.h5p_set_dxpl_mpio(xfer_plist, HDF5.H5FD_MPIO_COLLECTIVE)
     
     # Write data
-    HDF5.h5d_write(dset, HDF5.H5T_NATIVE_DOUBLE, memspace, filespace, xfer_plist, local_data)
+    HDF5.h5d_write(dset, HDF5.H5T_NATIVE_DOUBLE, memspace, filespace, xfer_plist, local_org)
     
     # Close spaces and property lists
     HDF5.h5s_close(memspace)
