@@ -38,7 +38,7 @@ end
 function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int, name::String, to_save::Dict) where {T <: Real}
     rank = MPI.Comm_rank(comm)
     local_data = @view P.arr[:, 4:end-3, 4:end-3, 4:end-3]
-    local_data = permutedims(Array(local_data),(4,3,2,1))  # ensure memory is contiguous
+    local_data = permutedims(Array(local_data),[4,3,2,1])
     
     if any(isnan.(local_data))
         throw("Nan in matrix")
@@ -69,11 +69,12 @@ function SaveHDF5Parallel(comm, P::VeronaArr{T}, XMPI::Int, YMPI::Int, ZMPI::Int
     filespace = HDF5.h5s_create_simple(4, global_dims, global_dims)
     
     # Create dataset
-    dset = HDF5.h5d_create(fid, "data", HDF5.H5T_NATIVE_DOUBLE, filespace, HDF5.H5P_DEFAULT, HDF5.H5P_DEFAULT, HDF5.H5P_DEFAULT)
+    dset = HDF5.h5d_create(fid, "data", HDF5.H5T_NATIVE_DOUBLE, filespace,
+                           HDF5.H5P_DEFAULT, HDF5.H5P_DEFAULT, HDF5.H5P_DEFAULT)
 
     # Define hyperslab for this process
-    offset = Vector{HDF5.hsize_t}([0, offset_x, offset_y, offset_z])
-    block = Vector{HDF5.hsize_t}([5, P.size_X-6, P.size_Y-6, P.size_Z-6])
+    offset = Vector{HDF5.hsize_t}(reverse([0, offset_x, offset_y, offset_z]))
+    block = Vector{HDF5.hsize_t}(reverse([5, P.size_X-6, P.size_Y-6, P.size_Z-6]))
     count = Vector{HDF5.hsize_t}([1, 1, 1, 1])
     stride = Vector{HDF5.hsize_t}([1, 1, 1, 1])
     

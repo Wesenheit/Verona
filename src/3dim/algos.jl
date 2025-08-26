@@ -222,7 +222,7 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
         fun_bound = kwargs[3]
     end
     
-    to_save = Dict("T"=>t, "grid"=>[dx,dy])
+    to_save = Dict("T"=>t, "grid"=>[dx,dy,dz])
     name = out_dir * "/dump"*string(i)*".h5"
     SaveHDF5Parallel(comm,P,XMPI,YMPI,ZMPI,name,to_save) #save initial timestep as 0th dump
 
