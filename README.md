@@ -10,4 +10,12 @@ It currently supports HLLC riemann solver with following reconstruction methods:
 - WENOZ
 
 ![Jet3d](examples/Jet3D/render_gam_den.png)
-*Figure 1: 3D Jet breakout simulation.
+*3D Jet breakout simulation. Red color indicate a highly relativistic outflow $\Gamma > \sqrt{2}$.
+
+## Requirements
+To properly launch the code one needs CUDA-aware MPI with HDF5 that should also be compatible 
+with the MPI version used to launch the code. 
+
+## Use guide
+Library was designed with simplicity in mind and exposes only the most important functionalities.
+The examples of the usage can be found in example directory. 
