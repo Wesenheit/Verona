@@ -167,12 +167,16 @@ end
 end
 
 
-function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
-                                    SizeX::Int64,SizeY::Int64,SizeZ::Int64,
+function HARM_HLL(comm,P::VeronaArr,MPI_dims::Tuple{Int64,Int64,Int64},
+                                    Size::Tuple{Int64,Int64,Int64},
                                     dt::T,dx::T,dy::T,dz::T,
                                     Tmax::T,eos::EOS{T},drops::T,
-                                    floor::T = 1e-7,out_dir::String = ".",kwargs...) where T
+                                    floor::T = 1e-7,out_dir::String = ".",
+                                    verbose::Bool = false,
+                                    kwargs...) where T
 
+    XMPI,YMPI,ZMPI = MPI_dims
+    SizeX,SizeY,SizeZ = Size
     backend = KernelAbstractions.get_backend(P.arr)
     U = VectorLike(P)
     Uhalf = VectorLike(P)
@@ -225,10 +229,10 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
     to_save = Dict("T"=>t, "grid"=>[dx,dy,dz])
     name = out_dir * "/dump"*string(i)*".h5"
     SaveHDF5Parallel(comm,P,XMPI,YMPI,ZMPI,name,to_save) #save initial timestep as 0th dump
-
+    idx_mpi=  MPI.Cart_coords(comm)
     while t < Tmax
         if length(kwargs) > 2
-            fun_bound(P,t)
+            fun_bound(P,t,idx_mpi,MPI_dims)
         end
 
         begin
@@ -291,8 +295,10 @@ function HARM_HLL(comm,P::VeronaArr,XMPI::Int64,YMPI::Int64,ZMPI::Int64,
             thres_to_dump += drops
             if MPI.Comm_rank(comm) == 0
                 elapsed = time()-t0
-                println(round(t,sigdigits = 3)," elapsed: ",round(elapsed,sigdigits = 3), " s")
-                println("speed: ",round(P.size_X * P.size_Y * P.size_Z * drops/dt * 1 / elapsed * 10^(-6),sigdigits = 3)," zones [10^6/s]")
+                if verbose
+                    println(round(t,sigdigits = 3)," elapsed: ",round(elapsed,sigdigits = 3), " s")
+                    println("speed: ",round(P.size_X * P.size_Y * P.size_Z * drops/dt * 1 / elapsed * 10^(-6),sigdigits = 3)," zones [10^6/s]")
+                end
                 t0 = time()
             end
             to_save = Dict("T"=>t, "grid"=>[dx,dy,dz])
