@@ -200,6 +200,10 @@ function HARM_HLL(comm,P::VeronaArr,MPI_dims::Tuple{Int64,Int64,Int64},
     buff_Z_4 = allocate(backend,T,5,P.size_X,P.size_Y,3)
     t::T = 0
 
+    #idx,_,_ = MPI.Cart_coords(comm)
+    #left,right = MPI.Cart_shift(comm,0,1)
+    #println(idx," ",left," ",right)
+    #return 
     SendBoundaryX(P,comm,buff_X_1,buff_X_2)
     SendBoundaryY(P,comm,buff_Y_1,buff_Y_2)
     SendBoundaryZ(P,comm,buff_Z_1,buff_Z_2)
