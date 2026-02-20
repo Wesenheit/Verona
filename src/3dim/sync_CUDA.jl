@@ -48,7 +48,7 @@ function WaitForBoundary(U::CuParVector3D{T},comm,
     requests = MPI.Request[]
     
     # X direction receives
-    if leftY != MPI.PROC_NULL  # Receive from left neighbor
+    if leftX != MPI.PROC_NULL  # Receive from left neighbor
         r1 = MPI.Irecv!(buff_X_1, leftX, 0, comm)
         push!(requests, r1)
     else
