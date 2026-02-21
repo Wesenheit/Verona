@@ -30,9 +30,9 @@ comm = MPI.Cart_create(
 )
 
 eos = Verona.EosTypes.Polytrope{Type}(4.0/3.0)
-Nx = 512 - 6
-Ny = 512 - 6
-Nz = 512 - 6
+Nx = 256 - 6
+Ny = 256 - 6
+Nz = 256 - 6
 
 P = Verona3D.ParVector3D{Type}(Nx, Ny, Nz)
 tot_X = MPI_X * Nx + 6
@@ -80,6 +80,7 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
     if i_g == 0 || j_g == 0 || k_g == 0
         continue
     end
+
     X = i_g * dx
     Y = j_g * dy - box_Y
     Z = k_g * dz - box_Z
@@ -88,36 +89,48 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
         R = sqrt(X^2 + Y^2 + Z^2)
         if R < R_max
             if R < R_eng
-                rho =
-                    Rho0 * (R_max/R_eng)^2 * (1+randn(thread_rngs[Threads.threadid()])*3e-2)
+                ρ = Rho0 * (R_max/R_eng)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             else
-                rho = Rho0 * (R_max/R)^2 * (1+randn(thread_rngs[Threads.threadid()])*3e-2)
+                ρ = Rho0 * (R_max/R)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             end
         else
-            rho = outer
+            ρ = outer
         end
-        P.arr[1, i, j, k] = rho
-        P.arr[2, i, j, k] = rho*Temp
+
+        v1 = 0.0
+        v2 = 0.0
+        v3 = 0.0
+        u  = Temp             
 
         if R < R_eng
-            v = 1/(1-1/Gamma0^2) * 1/cosh(sqrt(X^2+Y^2) / R_eng)^8
-            ux = Gamma0 * v
-            uy = 0
-            uz = 0
-            P.arr[1, i, j, k] = rho*1e-2
-            P.arr[2, i, j, k] = P.arr[1, i, j, k]*1e-5
-        else
-            ux = 0
-            uy = 0
-            uz = 0
+            ρ = ρ * 1e-2
+            u = 1e-5
+            r⊥ = sqrt(Y^2 + Z^2)
+            prof = 1 / cosh(r⊥ / R_eng)^8
+
+            v0 = sqrt(1 - 1 / (Gamma0^2))   
+            v1 = v0 * prof                
+            v2 = 0.0
+            v3 = 0.0
         end
-        P.arr[3, i, j, k] = ux
-        P.arr[4, i, j, k] = uy
-        P.arr[5, i, j, k] = uz
+
+        ρ = max(floor, ρ)
+        u = max(1e-12, u)
+
+        v2tot = v1*v1 + v2*v2 + v3*v3
+        if v2tot >= 1
+            s = sqrt((1 - 1e-12) / v2tot)
+            v1 *= s; v2 *= s; v3 *= s
+        end
+
+        P.arr[1, i, j, k] = ρ
+        P.arr[2, i, j, k] = v1
+        P.arr[3, i, j, k] = v2
+        P.arr[4, i, j, k] = v3
+        P.arr[5, i, j, k] = u
     end
 end
 end_calc = time()
-
 
 Cmax::Type = 0.4
 dt::Type = Cmax / (1/dx + 1/dy + 1/dz)
@@ -127,11 +140,9 @@ tol::Type = 1e-6
 reconstruction_method = Val(:PPM)
 T_exp::Type = box_X/10
 
-
 function TurnOff(P, t)
     if t > box_X/3 && t < box_X
-        #turn off the engine
-        P.arr[3, 1:3, :, :] .*= (1-dt/T_exp)
+        P.arr[2, 1:3, :, :] .*= (1-dt/T_exp)
     end
     #zero grad Y
     P.arr[:, :, 1, :] .= P.arr[:, :, 4, :]
@@ -156,6 +167,7 @@ function TurnOff(P, t)
     P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
     P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
 end
+TurnOff(P, t, _idxs, _dims) = TurnOff(P, t)
 
 if MPI.Comm_rank(comm) == 0
     println("dt: ", dt)
@@ -170,12 +182,8 @@ CuP = Verona3D.CuParVector3D{Type}(P)
 Verona3D.HARM_HLL(
     comm,
     CuP,
-    MPI_X,
-    MPI_Y,
-    MPI_Z,
-    SizeX,
-    SizeY,
-    SizeZ,
+    (MPI_X, MPI_Y, MPI_Z),
+    (SizeX, SizeY, SizeZ),
     dt,
     dx,
     dy,
@@ -185,6 +193,7 @@ Verona3D.HARM_HLL(
     drops,
     floor,
     ARGS[1],
+    true,               
     n_it,
     tol,
     TurnOff,
