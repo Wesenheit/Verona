@@ -16,8 +16,7 @@
 
     else
         # Middle processes: valid local indices are halo:(Size - halo)
-        offset = (Size - halo) + interior_size * (p - 1) - 1 
+        offset = (Size - halo) + interior_size * (p - 1) - 1
         return (i > halo && i <= Size - halo) ? offset + i - halo + 1 : 0
     end
 end
-
