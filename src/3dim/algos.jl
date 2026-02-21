@@ -143,7 +143,7 @@ end
 
         CL = (eos.gamma*PL[1]*(eos.gamma-1)*PL[5])/(PL[1]*(1 + (eos.gamma)*PL[5]))#SoundSpeed(PL[1], PL[2], eos)
         CR = (eos.gamma*PR[1]*(eos.gamma-1)*PR[5])/(PR[1]*(1 + (eos.gamma)*PR[5]))#SoundSpeed(PR[1], PR[2], eos)
-        
+
         sigma_S_L = CL / (lorL^2 * (1-CL))
         sigma_S_R = CR / (lorR^2 * (1-CR))
 

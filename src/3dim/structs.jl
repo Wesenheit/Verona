@@ -56,23 +56,23 @@ end
     i, j, k = @index(Global, NTuple)
     begin
 
-		# Primitive variables
-		ρ  = P[1,i,j,k] 		    # Rest-mass density
-		v¹ = P[2,i,j,k] 	        # Contravariant three-velocity in the x-direction
-		v² = P[3,i,j,k] 		    # Contravariant three-velocity in the y-direction
-		v³ = P[4,i,j,k] 		    # Contravariant three-velocity in the z-direction     
-		u  = P[5,i,j,k] 	        # Specific internal energy 
+        # Primitive variables
+        ρ = P[1, i, j, k]     # Rest-mass density
+        v¹ = P[2, i, j, k]         # Contravariant three-velocity in the x-direction
+        v² = P[3, i, j, k]     # Contravariant three-velocity in the y-direction
+        v³ = P[4, i, j, k]     # Contravariant three-velocity in the z-direction     
+        u = P[5, i, j, k]         # Specific internal energy 
 
-		# Useful
-		W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³)) #Lorentz factor
-		h = 1 + (eos.gamma)*u                 #Enthalpy
+        # Useful
+        W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³)) #Lorentz factor
+        h = 1 + (eos.gamma)*u                 #Enthalpy
 
-		#Conserved variables        
-        U[1, i, j, k] =  ρ*W 
-        U[2, i, j, k] = (ρ*h)*W^2 * v¹ 
-        U[3, i, j, k] = (ρ*h)*W^2 * v²  
-        U[4, i, j, k] = (ρ*h)*W^2 * v³ 
-        U[5, i, j, k] = (ρ*h)*W^2 - ρ*u*(eos.gamma -1) - ρ*W 
+        #Conserved variables        
+        U[1, i, j, k] = ρ*W
+        U[2, i, j, k] = (ρ*h) * W^2 * v¹
+        U[3, i, j, k] = (ρ*h) * W^2 * v²
+        U[4, i, j, k] = (ρ*h) * W^2 * v³
+        U[5, i, j, k] = (ρ*h)*W^2 - ρ*u*(eos.gamma - 1) - ρ*W
     end
 end
 
@@ -82,24 +82,24 @@ end
     U::AbstractVector{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-	
+
     # Primitive variables
-    ρ  = P[1] 		    # Rest-mass density
-    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
-    v² = P[3] 		    # Contravariant three-velocity in the y-direction
-    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
-    u  = P[5] 	        # Specific internal energy 
-	
+    ρ = P[1]     # Rest-mass density
+    v¹ = P[2]         # Contravariant three-velocity in the x-direction
+    v² = P[3]     # Contravariant three-velocity in the y-direction
+    v³ = P[4]     # Contravariant three-velocity in the z-direction     
+    u = P[5]         # Specific internal energy 
+
     # Useful
-	W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
-	h = 1 + (eos.gamma)*u
-    
-	#Conserved variables
-	U[1] = ρ*W 
-	U[2] = ρ*h*W^2 * v¹       
-	U[3] = ρ*h*W^2 * v²            
-	U[4] = ρ*h*W^2 * v³ 
-	U[5] = ρ*h*W^2 - ρ*u*(eos.gamma-1) - ρ*W 
+    W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
+    h = 1 + (eos.gamma)*u
+
+    #Conserved variables
+    U[1] = ρ*W
+    U[2] = ρ * h * W^2 * v¹
+    U[3] = ρ * h * W^2 * v²
+    U[4] = ρ * h * W^2 * v³
+    U[5] = ρ*h*W^2 - ρ*u*(eos.gamma-1) - ρ*W
 end
 
 
@@ -110,29 +110,29 @@ end
 ) where {T<:Real}
 
     # Primitive variables
-    ρ  = P[1] 		    # Rest-mass density
-    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
-    v² = P[3] 		    # Contravariant three-velocity in the y-direction
-    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
-    u  = P[5] 	        # Specific internal energy 
-    
+    ρ = P[1]     # Rest-mass density
+    v¹ = P[2]         # Contravariant three-velocity in the x-direction
+    v² = P[3]     # Contravariant three-velocity in the y-direction
+    v³ = P[4]     # Contravariant three-velocity in the z-direction     
+    u = P[5]         # Specific internal energy 
+
     # Useful
     W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
     h = 1 + (eos.gamma)*u
-    
+
     #Conserved variables
-    D  = ρ*W
-    S₁ = ρ*h*W^2 * v¹
-    S₂ = ρ*h*W^2 * v²
-    S₃ = ρ*h*W^2 * v³ 
-    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D	
-	
+    D = ρ*W
+    S₁ = ρ * h * W^2 * v¹
+    S₂ = ρ * h * W^2 * v²
+    S₃ = ρ * h * W^2 * v³
+    τ = ρ*h*W^2 - ρ*u*(eos.gamma - 1) - D
+
     #Fluxes in X-direction
-    Fx[1] = D *v¹
-    Fx[2] = S₁*v¹ + ρ*u*(eos.gamma -1) 
-    Fx[3] = S₂*v¹              
-    Fx[4] = S₃*v¹  
-    Fx[5] = τ *v¹ + ρ*u*(eos.gamma -1)*v¹ 
+    Fx[1] = D * v¹
+    Fx[2] = S₁*v¹ + ρ*u*(eos.gamma - 1)
+    Fx[3] = S₂*v¹
+    Fx[4] = S₃*v¹
+    Fx[5] = τ * v¹ + ρ*u*(eos.gamma - 1)*v¹
 end
 
 
@@ -143,29 +143,29 @@ end
     eos::Polytrope{T},
 ) where {T<:Real}
     # Primitive variables
-    ρ  = P[1] 		    # Rest-mass density
-    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
-    v² = P[3] 		    # Contravariant three-velocity in the y-direction
-    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
-    u  = P[5] 	        # Specific internal energy 
-    
+    ρ = P[1]     # Rest-mass density
+    v¹ = P[2]         # Contravariant three-velocity in the x-direction
+    v² = P[3]     # Contravariant three-velocity in the y-direction
+    v³ = P[4]     # Contravariant three-velocity in the z-direction     
+    u = P[5]         # Specific internal energy 
+
     # Useful
     W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
     h = 1 + (eos.gamma)*u
-    
+
     #Conserved variables
-    D  = ρ*W
-    S₁ = ρ*h*W^2 * v¹
-    S₂ = ρ*h*W^2 * v²
-    S₃ = ρ*h*W^2 * v³ 
-    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D	
+    D = ρ*W
+    S₁ = ρ * h * W^2 * v¹
+    S₂ = ρ * h * W^2 * v²
+    S₃ = ρ * h * W^2 * v³
+    τ = ρ*h*W^2 - ρ*u*(eos.gamma - 1) - D
 
     #Fluxes in Y-direction
-    Fy[1] = D *v²
-    Fy[2] = S₁*v² 
-    Fy[3] = S₂*v² + ρ*u*(eos.gamma -1)           
-    Fy[4] = S₃*v² 
-    Fy[5] = τ *v² + ρ*u*(eos.gamma -1)*v²
+    Fy[1] = D * v²
+    Fy[2] = S₁*v²
+    Fy[3] = S₂*v² + ρ*u*(eos.gamma - 1)
+    Fy[4] = S₃*v²
+    Fy[5] = τ * v² + ρ*u*(eos.gamma - 1)*v²
 end
 
 
@@ -174,31 +174,31 @@ end
     Fz::AbstractArray{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-    
-# Primitive variables
-    ρ  = P[1] 		    # Rest-mass density
-    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
-    v² = P[3] 		    # Contravariant three-velocity in the y-direction
-    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
-    u  = P[5] 	        # Specific internal energy 
-    
+
+    # Primitive variables
+    ρ = P[1]     # Rest-mass density
+    v¹ = P[2]         # Contravariant three-velocity in the x-direction
+    v² = P[3]     # Contravariant three-velocity in the y-direction
+    v³ = P[4]     # Contravariant three-velocity in the z-direction     
+    u = P[5]         # Specific internal energy 
+
     # Useful
     W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
     h = 1 + (eos.gamma)*u
-    
+
     #Conserved variables
-    D  = ρ*W
-    S₁ = ρ*h*W^2 * v¹
-    S₂ = ρ*h*W^2 * v²
-    S₃ = ρ*h*W^2 * v³ 
-    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D
-    
+    D = ρ*W
+    S₁ = ρ * h * W^2 * v¹
+    S₂ = ρ * h * W^2 * v²
+    S₃ = ρ * h * W^2 * v³
+    τ = ρ*h*W^2 - ρ*u*(eos.gamma - 1) - D
+
     #Fluxes in Z-direction
-    Fz[1] = D *v³
+    Fz[1] = D * v³
     Fz[2] = S₁*v³
-    Fz[3] = S₂*v³             
-    Fz[4] = S₃*v³ + ρ*u*(eos.gamma -1)
-    Fz[5] = τ *v³ + ρ*u*(eos.gamma -1)*v³
+    Fz[3] = S₂*v³
+    Fz[4] = S₃*v³ + ρ*u*(eos.gamma - 1)
+    Fz[5] = τ * v³ + ρ*u*(eos.gamma - 1)*v³
 end
 
 @kernel inbounds = true function function_UtoP(
@@ -228,22 +228,23 @@ end
     if i > 3 && i < Nx - 2 && j > 3 && j < Ny-2 && k > 3 && k < Nz-2
 
         #Conserved Variable
-        D  = Uloc[1, il, jl, kl]
+        D = Uloc[1, il, jl, kl]
         S₁ = Uloc[2, il, jl, kl]
         S₂ = Uloc[3, il, jl, kl]
         S₃ = Uloc[4, il, jl, kl]
-        τ  = Uloc[5, il, jl, kl]
+        τ = Uloc[5, il, jl, kl]
 
         #Useful
         S² = S₁*S₁ + S₂*S₂ + S₃*S₃
         Z_min = max(D, sqrt(S²)*(1+1e-12))
-	    Z_max = max(Z_min*2, D + eos.gamma*τ + 10*abs(τ))
+        Z_max = max(Z_min*2, D + eos.gamma*τ + 10*abs(τ))
         a = Z_min
-        b = Z_max     
-        
+        b = Z_max
+
         #Function for BRENT solver
         f(z) = begin
-		τ + D - z + ((eos.gamma - 1)/eos.gamma) * ( z*(1 - (S² / z^2)) - D*sqrt(1 -  ((S² / z^2))))
+            τ + D - z +
+            ((eos.gamma - 1)/eos.gamma) * (z*(1 - (S² / z^2)) - D*sqrt(1 - ((S² / z^2))))
         end
 
         #BRENT SOLVER
@@ -257,7 +258,7 @@ end
         tolerance = 1e-8
         converged = false
 
-        for _ in 1:100
+        for _ = 1:100
             if fb == 0 || abs(b - a) <= tolerance
                 converged = true
                 break
@@ -271,7 +272,7 @@ end
                 b - fb*(b - a)/(fb - fa)
             end
 
-            if ((s - (3*a + b)/4)*(s - b) >= 0) || 
+            if ((s - (3*a + b)/4)*(s - b) >= 0) ||
                (mflag && abs(s - b) >= abs(b - c)/2) ||
                (!mflag && abs(s - b) >= abs(c - d)/2) ||
                (mflag && abs(b - c) < tolerance) ||
@@ -305,14 +306,14 @@ end
             Ploc[2, il, jl, kl] = S₁/(Z_SOL)
             Ploc[3, il, jl, kl] = S₂/(Z_SOL)
             Ploc[4, il, jl, kl] = S₃/(Z_SOL)
-            Ploc[5, il, jl, kl] = 1/eos.gamma *(Z_SOL/((D/W)*W^2)-1)
+            Ploc[5, il, jl, kl] = 1/eos.gamma * (Z_SOL/((D/W)*W^2)-1)
         else
             Ploc[1, il, jl, kl] = sqrt(-1)
             Ploc[2, il, jl, kl] = sqrt(-1)
             Ploc[3, il, jl, kl] = sqrt(-1)
             Ploc[4, il, jl, kl] = sqrt(-1)
             Ploc[5, il, jl, kl] = sqrt(-1)
-        end       
+        end
     end
 
     @synchronize
