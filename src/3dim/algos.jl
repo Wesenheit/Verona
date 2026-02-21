@@ -8,7 +8,7 @@ const z = UInt8(3)
 ) where {T<:Real}
     i, j, k = @index(Global, NTuple)
     P[1, i, j, k] = max(P[1, i, j, k], floor)
-    P[2, i, j, k] = max(P[2, i, j, k], floor)
+    P[5, i, j, k] = max(P[5, i, j, k], floor)
 end
 
 @kernel inbounds = true function function_Fluxes(
@@ -75,7 +75,7 @@ end
                 q_ip1 = P[idx, i, j, k+1]
                 q_ip2 = P[idx, i, j, k+2]
             end
-            Q_D, Q_U = WENOZ(q_im2, q_im1, q_i, q_ip1, q_ip2)
+            Q_D, Q_U = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
             PL[idx] = Q_U
         end
     end
@@ -102,14 +102,14 @@ end
                 q_ip2 = P[idx, i, j, k+3]
             end
 
-            Q_D, Q_L = WENOZ(q_im2, q_im1, q_i, q_ip1, q_ip2)
+            Q_D, Q_L = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
             PR[idx] = Q_D
         end
     end
 
 
     if i > 2 && j > 2 && k > 2 && i < Nx-2 && j < Ny-2 && k < Nz-2
-        for idx = 1:2
+        for idx in (1, 5)
             PL[idx] = max(floor, PL[idx])
             PR[idx] = max(floor, PR[idx])
         end
@@ -127,24 +127,25 @@ end
             function_PtoFz(PL, FL, eos)
         end
 
-        lorL = sqrt(PL[3]^2 + PL[4]^2 + PL[5]^2 + 1)
-        lorR = sqrt(PR[3]^2 + PR[4]^2 + PR[5]^2 + 1)
+        lorL = 1/sqrt(1-(PL[2]^2 + PL[3]^2 + PL[4]^2))#sqrt(PL[3]^2 + PL[4]^2 + PL[5]^2 + 1)
+        lorR = 1/sqrt(1-(PR[2]^2 + PR[3]^2 + PR[4]^2))#sqrt(PR[3]^2 + PR[4]^2 + PR[5]^2 + 1)
+
         if dim == x
-            vL = PL[3] / lorL
-            vR = PR[3] / lorR
+            vL = PL[2] #/ lorL
+            vR = PR[2] #/ lorR
         elseif dim == y
-            vL = PL[4] / lorL
-            vR = PR[4] / lorR
+            vL = PL[3] #/ lorL
+            vR = PR[3] #/ lorR
         elseif dim == z
-            vL = PL[5] / lorL
-            vR = PR[5] / lorR
+            vL = PL[4] #/ lorL
+            vR = PR[4] #/ lorR
         end
 
-        CL = SoundSpeed(PL[1], PL[2], eos)
-        CR = SoundSpeed(PR[1], PR[2], eos)
-
-        sigma_S_L = CL^2 / (lorL^2 * (1-CL^2))
-        sigma_S_R = CR^2 / (lorR^2 * (1-CR^2))
+        CL = (eos.gamma*PL[1]*(eos.gamma-1)*PL[5])/(PL[1]*(1 + (eos.gamma)*PL[5]))#SoundSpeed(PL[1], PL[2], eos)
+        CR = (eos.gamma*PR[1]*(eos.gamma-1)*PR[5])/(PR[1]*(1 + (eos.gamma)*PR[5]))#SoundSpeed(PR[1], PR[2], eos)
+        
+        sigma_S_L = CL / (lorL^2 * (1-CL))
+        sigma_S_R = CR / (lorR^2 * (1-CR))
 
         C_max_X = max(
             (vL + sqrt(sigma_S_L * (1-vL^2 + sigma_S_L))) / (1 + sigma_S_L),

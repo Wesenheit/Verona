@@ -7,21 +7,6 @@ using CUDA
 using MPI
 using HDF5
 
-# Used scheme
-# U - conserved variables
-# U1 = rho ut - mass conservation
-# U2 = T^t_t - energy conservation
-# U3 = T^t_x - momentum conservation x
-# U4 = T^t_y - momentum conservation y
-# U5 = T^t_z - momentum conservation z
-
-# P - primitive variables
-# P1 = rho - density
-# P2 = u - energy density
-# P3 = ux four-velocity in x
-# P4 = uy four-velocity in y
-# P5 = uz four-velocity in z
-
 abstract type VeronaArr{T} end
 
 
@@ -70,13 +55,24 @@ end
 ) where {T<:Real}
     i, j, k = @index(Global, NTuple)
     begin
-        gam = sqrt(P[3, i, j, k]^2 + P[4, i, j, k]^2 + P[5, i, j, k]^2 + 1)  #gam = u⁰
-        w = eos.gamma * P[2, i, j, k] + P[1, i, j, k]                     # ρ + u + p = ρ + eos.gamma*u
-        U[1, i, j, k] = gam * P[1, i, j, k]
-        U[2, i, j, k] = (eos.gamma-1) * P[2, i, j, k] - gam^2 * w
-        U[3, i, j, k] = P[3, i, j, k] * gam * w
-        U[4, i, j, k] = P[4, i, j, k] * gam * w
-        U[5, i, j, k] = P[5, i, j, k] * gam * w
+
+		# Primitive variables
+		ρ  = P[1,i,j,k] 		    # Rest-mass density
+		v¹ = P[2,i,j,k] 	        # Contravariant three-velocity in the x-direction
+		v² = P[3,i,j,k] 		    # Contravariant three-velocity in the y-direction
+		v³ = P[4,i,j,k] 		    # Contravariant three-velocity in the z-direction     
+		u  = P[5,i,j,k] 	        # Specific internal energy 
+
+		# Useful
+		W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³)) #Lorentz factor
+		h = 1 + (eos.gamma)*u                 #Enthalpy
+
+		#Conserved variables        
+        U[1, i, j, k] =  ρ*W 
+        U[2, i, j, k] = (ρ*h)*W^2 * v¹ 
+        U[3, i, j, k] = (ρ*h)*W^2 * v²  
+        U[4, i, j, k] = (ρ*h)*W^2 * v³ 
+        U[5, i, j, k] = (ρ*h)*W^2 - ρ*u*(eos.gamma -1) - ρ*W 
     end
 end
 
@@ -86,13 +82,24 @@ end
     U::AbstractVector{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-    gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1) #gam = u⁰
-    w = eos.gamma * P[2] + P[1]
-    U[1] = gam * P[1]
-    U[2] = (eos.gamma-1) * P[2] - gam^2 * w
-    U[3] = P[3] * gam * w
-    U[4] = P[4] * gam * w
-    U[5] = P[5] * gam * w
+	
+    # Primitive variables
+    ρ  = P[1] 		    # Rest-mass density
+    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
+    v² = P[3] 		    # Contravariant three-velocity in the y-direction
+    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
+    u  = P[5] 	        # Specific internal energy 
+	
+    # Useful
+	W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
+	h = 1 + (eos.gamma)*u
+    
+	#Conserved variables
+	U[1] = ρ*W 
+	U[2] = ρ*h*W^2 * v¹       
+	U[3] = ρ*h*W^2 * v²            
+	U[4] = ρ*h*W^2 * v³ 
+	U[5] = ρ*h*W^2 - ρ*u*(eos.gamma-1) - ρ*W 
 end
 
 
@@ -101,13 +108,31 @@ end
     Fx::AbstractVector{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-    gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
-    w = eos.gamma * P[2] + P[1]
-    Fx[1] = P[1] * P[3]
-    Fx[2] = - w * P[3] * gam
-    Fx[3] = P[3]^2 * w + (eos.gamma - 1) * P[2]
-    Fx[4] = P[3] * P[4] * w
-    Fx[5] = P[3] * P[5] * w
+
+    # Primitive variables
+    ρ  = P[1] 		    # Rest-mass density
+    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
+    v² = P[3] 		    # Contravariant three-velocity in the y-direction
+    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
+    u  = P[5] 	        # Specific internal energy 
+    
+    # Useful
+    W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
+    h = 1 + (eos.gamma)*u
+    
+    #Conserved variables
+    D  = ρ*W
+    S₁ = ρ*h*W^2 * v¹
+    S₂ = ρ*h*W^2 * v²
+    S₃ = ρ*h*W^2 * v³ 
+    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D	
+	
+    #Fluxes in X-direction
+    Fx[1] = D *v¹
+    Fx[2] = S₁*v¹ + ρ*u*(eos.gamma -1) 
+    Fx[3] = S₂*v¹              
+    Fx[4] = S₃*v¹  
+    Fx[5] = τ *v¹ + ρ*u*(eos.gamma -1)*v¹ 
 end
 
 
@@ -117,103 +142,64 @@ end
     Fy::AbstractArray{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-    gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
-    w = eos.gamma * P[2] + P[1]
-    Fy[1] = P[1] * P[4]
-    Fy[2] = - w * P[4] * gam
-    Fy[3] = P[3] * P[4] * w
-    Fy[4] = P[4]^2 * w + (eos.gamma - 1) * P[2]
-    Fy[5] = P[5] * P[4] * w
+    # Primitive variables
+    ρ  = P[1] 		    # Rest-mass density
+    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
+    v² = P[3] 		    # Contravariant three-velocity in the y-direction
+    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
+    u  = P[5] 	        # Specific internal energy 
+    
+    # Useful
+    W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
+    h = 1 + (eos.gamma)*u
+    
+    #Conserved variables
+    D  = ρ*W
+    S₁ = ρ*h*W^2 * v¹
+    S₂ = ρ*h*W^2 * v²
+    S₃ = ρ*h*W^2 * v³ 
+    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D	
+
+    #Fluxes in Y-direction
+    Fy[1] = D *v²
+    Fy[2] = S₁*v² 
+    Fy[3] = S₂*v² + ρ*u*(eos.gamma -1)           
+    Fy[4] = S₃*v² 
+    Fy[5] = τ *v² + ρ*u*(eos.gamma -1)*v²
 end
 
 
 @inline function function_PtoFz(
     P::AbstractArray{T},
-    Fy::AbstractArray{T},
+    Fz::AbstractArray{T},
     eos::Polytrope{T},
 ) where {T<:Real}
-    gam = sqrt(P[3]^2 + P[4]^2 + P[5]^2 + 1)
-    w = eos.gamma * P[2] + P[1]
-    Fy[1] = P[1] * P[5]
-    Fy[2] = - w * P[5] * gam
-    Fy[3] = P[3] * P[5] * w
-    Fy[4] = P[4] * P[5] * w
-    Fy[5] = w*P[5]^2 + (eos.gamma - 1) * P[2]
+    
+# Primitive variables
+    ρ  = P[1] 		    # Rest-mass density
+    v¹ = P[2] 	        # Contravariant three-velocity in the x-direction
+    v² = P[3] 		    # Contravariant three-velocity in the y-direction
+    v³ = P[4] 		    # Contravariant three-velocity in the z-direction     
+    u  = P[5] 	        # Specific internal energy 
+    
+    # Useful
+    W = 1/sqrt(1-(v¹*v¹ + v²*v² + v³*v³))
+    h = 1 + (eos.gamma)*u
+    
+    #Conserved variables
+    D  = ρ*W
+    S₁ = ρ*h*W^2 * v¹
+    S₂ = ρ*h*W^2 * v²
+    S₃ = ρ*h*W^2 * v³ 
+    τ  = ρ*h*W^2 - ρ*u*(eos.gamma -1) - D
+    
+    #Fluxes in Z-direction
+    Fz[1] = D *v³
+    Fz[2] = S₁*v³
+    Fz[3] = S₂*v³             
+    Fz[4] = S₃*v³ + ρ*u*(eos.gamma -1)
+    Fz[5] = τ *v³ + ρ*u*(eos.gamma -1)*v³
 end
-
-@inline function LU_dec_5D!(
-    flat_matrix::AbstractVector{T},
-    target::AbstractVector{T},
-    x::AbstractVector{T},
-) where {T<:Real}
-
-    @inline function index(i, j)
-        return (j - 1) * 5 + i
-    end
-
-    for k = 1:5
-        for i = (k+1):5
-            flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
-            for j = (k+1):5
-                flat_matrix[index(i, j)] -=
-                    flat_matrix[index(i, k)] * flat_matrix[index(k, j)]
-            end
-        end
-    end
-
-    # Forward substitution to solve L*y = target (reusing x for y)
-    for i = 1:5
-        x[i] = target[i]
-        for j = 1:(i-1)
-            x[i] -= flat_matrix[index(i, j)] * x[j]
-        end
-    end
-
-    # Backward substitution to solve U*x = y
-    for i = 5:-1:1
-        for j = (i+1):5
-            x[i] -= flat_matrix[index(i, j)] * x[j]
-        end
-        x[i] /= flat_matrix[index(i, i)]
-    end
-end
-
-@inline function LU_dec_2D!(
-    flat_matrix::AbstractVector{T},
-    target::AbstractVector{T},
-    x::AbstractVector{T},
-) where {T<:Real}
-
-    @inline function index(i, j)
-        return (j - 1) * 2 + i
-    end
-
-    for k = 1:2
-        for i = (k+1):2
-            flat_matrix[index(i, k)] /= flat_matrix[index(k, k)]
-            for j = (k+1):2
-                flat_matrix[index(i, j)] -=
-                    flat_matrix[index(i, k)] * flat_matrix[index(k, j)]
-            end
-        end
-    end
-
-    for i = 1:2
-        x[i] = target[i]
-        for j = 1:(i-1)
-            x[i] -= flat_matrix[index(i, j)] * x[j]
-        end
-    end
-
-    for i = 2:-1:1
-        for j = (i+1):2
-            x[i] -= flat_matrix[index(i, j)] * x[j]
-        end
-        x[i] /= flat_matrix[index(i, i)]
-    end
-end
-
-
 
 @kernel inbounds = true function function_UtoP(
     @Const(U::AbstractArray{T}),
@@ -234,390 +220,99 @@ end
     Ploc = @localmem eltype(U) (5, N, M, L)
     Uloc = @localmem eltype(U) (5, N, M, L)
 
-
     for idx = 1:5
         Ploc[idx, il, jl, kl] = P[idx, i, j, k]
         Uloc[idx, il, jl, kl] = U[idx, i, j, k]
     end
 
-
-    buff_out_t_2D = @localmem eltype(U) (2, N, M, L)
-    buff_out_2D = @view buff_out_t_2D[:, il, jl, kl]
-
-    buff_fun_t_2D = @localmem eltype(U) (2, N, M, L)
-    buff_fun_2D = @view buff_fun_t_2D[:, il, jl, kl]
-    buff_jac_2D = @MVector zeros(T, 4)
-
-    buff_out_t_5D = @localmem eltype(U) (5, N, M, L)
-    buff_out_5D = @view buff_out_t_5D[:, il, jl, kl]
-
-    buff_fun_t_5D = @localmem eltype(U) (5, N, M, L)
-    buff_fun_5D = @view buff_fun_t_5D[:, il, jl, kl]
-    buff_jac_5D = @MVector zeros(T, 25)
-
     if i > 3 && i < Nx - 2 && j > 3 && j < Ny-2 && k > 3 && k < Nz-2
 
         #Conserved Variable
-        D = Uloc[1, il, jl, kl]
-        Q_t = Uloc[2, il, jl, kl]
-        Q_x = Uloc[3, il, jl, kl]
-        Q_y = Uloc[4, il, jl, kl]
-        Q_z = Uloc[5, il, jl, kl]
+        D  = Uloc[1, il, jl, kl]
+        S₁ = Uloc[2, il, jl, kl]
+        S₂ = Uloc[3, il, jl, kl]
+        S₃ = Uloc[4, il, jl, kl]
+        τ  = Uloc[5, il, jl, kl]
 
-        #Convergence indicators
-        convergence_1DW = false
-        convergence_2D = false
-        convergence_5D = false
-        convergence_bisection = false
-
-        #1DW METHOD (Noble et al. 2006)
-        if !convergence_1DW
-            #Useful quantities
-            S² = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
-            γ = sqrt(
-                Ploc[3, il, jl, kl]^2 + Ploc[4, il, jl, kl]^2 + Ploc[5, il, jl, kl]^2 + 1,
-            )
-            w_small = Ploc[1, il, jl, kl] + (eos.gamma)*Ploc[2, il, jl, kl]
-            v² =
-                (
-                    (Ploc[3, il, jl, kl])^2 +
-                    (Ploc[4, il, jl, kl])^2 +
-                    (Ploc[5, il, jl, kl])^2
-                )/γ^2
-            W = w_small*γ^2
-            W_max = 1e30
-            W_min = sqrt(S²) * (1 + 1e-15)
-
-            #Initial condition, with v²<1
-            while S² / W^2 >= 1 && W < W_max
-                W *= 10
-            end
-
-            #Additional useful values
-            v² = min(S² / W^2, 1 - 1e-15)
-            W_old = W
-            v²_old = v²
-
-            for _ = 1:n_iter
-
-                if W < W_min
-                    W = W_min
-                end
-
-                v² = S² / W^2
-
-                if v² < 0.0
-                    v² = 0.0
-                elseif v² > 1 - 1e-15
-                    v² = 1 - 1e-15
-                end
-
-                buff_fun =
-                    Q_t + W -
-                    ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
-                buff_jac =
-                    1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²) -
-                    ((eos.gamma - 1) / eos.gamma) *
-                    (W * (2 * S² / W^3) - D * (S² / (W^3 * sqrt(1 - v²))))
-
-                ΔW = buff_fun / buff_jac
-                W_proposed = W - ΔW
-
-                if W_proposed < W_min
-                    W = 0.5 * (W + W_min)
-                else
-                    W = W_proposed
-                end
-
-
-                if ΔW < 0
-                    ΔW = -ΔW
-                end
-
-                if ΔW^2 < tol^2
-                    convergence_1DW = true
-                    break
-                end
-
-            end
+        #Useful
+        S² = S₁*S₁ + S₂*S₂ + S₃*S₃
+        Z_min = max(D, sqrt(S²)*(1+1e-12))
+	    Z_max = max(Z_min*2, D + eos.gamma*τ + 10*abs(τ))
+        a = Z_min
+        b = Z_max     
+        
+        #Function for BRENT solver
+        f(z) = begin
+		τ + D - z + ((eos.gamma - 1)/eos.gamma) * ( z*(1 - (S² / z^2)) - D*sqrt(1 -  ((S² / z^2))))
         end
 
-        #2D METHOD (Noble et al. 2006)
-        if !convergence_1DW
-            #Useful quantities
-            S² = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
-            γ = sqrt(
-                Ploc[3, il, jl, kl]^2 + Ploc[4, il, jl, kl]^2 + Ploc[5, il, jl, kl]^2 + 1,
-            )
-            w_small = Ploc[1, il, jl, kl] + (eos.gamma)*Ploc[2, il, jl, kl]
-            v² =
-                (
-                    (Ploc[3, il, jl, kl])^2 +
-                    (Ploc[4, il, jl, kl])^2 +
-                    (Ploc[5, il, jl, kl])^2
-                )/γ^2
-            W = w_small*γ^2
-            W_max = 1e30 #like in HARM        
-            W_min = sqrt(S²) * (1 + 1e-15)
-
-            #Initial condition, with v²<1
-            while S² / W^2 >= 1 && W < W_max
-                W *= 10
-            end
-
-            #Additional useful values
-            v² = min(S² / W^2, 1 - 1e-15)
-            W_old = W
-            v²_old = v²
-
-            for _ = 1:n_iter
-                W_old = W
-                v²_old = v²
-
-                buff_fun_2D[1] = v² - S² / W^2
-                buff_fun_2D[2] =
-                    Q_t + W -
-                    ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
-
-                buff_jac_2D[1] = 2 * S² / W^3
-                buff_jac_2D[2] = 1 - ((eos.gamma - 1) / eos.gamma) * (1 - v²)
-                buff_jac_2D[3] = 1
-                buff_jac_2D[4] =
-                    ((eos.gamma - 1) / eos.gamma) * (W - D / (2 * sqrt(1 - v²)))
-
-                LU_dec_2D!(buff_jac_2D, buff_fun_2D, buff_out_2D)
-
-                ΔW = buff_out_2D[1]
-                Δv² = buff_out_2D[2]
-                α = 1.0
-
-                converged = false
-
-                for _ = 1:10
-
-                    W_candidate = (sqrt(W - α * ΔW)^2)
-                    v²_candidate = v² - α * Δv²
-
-                    if W_candidate <= 0 || W_candidate > W_max
-                        W_candidate = W_old
-                    end
-
-                    if v²_candidate < 0
-                        v²_candidate = 0.0
-                    elseif v²_candidate >= 1
-                        v²_candidate = 1.0 - 1e-15
-                    end
-
-                    r1 = v²_candidate - S² / W_candidate^2
-                    r2 =
-                        Q_t + W_candidate -
-                        ((eos.gamma - 1) / eos.gamma) *
-                        (W_candidate * (1 - v²_candidate) - D * sqrt(1 - v²_candidate))
-                    err_candidate = r1^2 + r2^2
-
-                    r1_old = v² - S² / W^2
-                    r2_old =
-                        Q_t + W -
-                        ((eos.gamma - 1) / eos.gamma) * (W * (1 - v²) - D * sqrt(1 - v²))
-                    err_old = r1_old^2 + r2_old^2
-
-                    if err_candidate <= err_old
-                        W = W_candidate
-                        v² = v²_candidate
-                        converged = true
-                        break
-                    else
-                        α *= 0.5
-                    end
-                end
-
-                if !converged
-                    W = W_old
-                    v² = v²_old
-                end
-
-                relW = sqrt((W - W_old)^2) / max(abs(W_old), tol^2)
-                relv² = sqrt((v² - v²_old)^2) / max(abs(v²_old), tol^2)
-
-                if (relW + relv²) < tol
-                    convergence_2D = true
-                    break
-                end
-            end
+        #BRENT SOLVER
+        fa, fb = f(a), f(b)
+        if abs(fa) < abs(fb)
+            a, b = b, a
+            fa, fb = fb, fa
         end
+        c, fc, d = a, fa, 0.0
+        mflag = true
+        tolerance = 1e-8
+        converged = false
 
-        #5D METHOD
-        if !convergence_1DW && !convergence_2D
-            for _ = 1:n_iter
-
-                gam = sqrt(
-                    Ploc[3, il, jl, kl]^2 +
-                    Ploc[4, il, jl, kl]^2 +
-                    Ploc[5, il, jl, kl]^2 +
-                    1,
-                )
-                w = eos.gamma * Ploc[2, il, jl, kl] + Ploc[1, il, jl, kl]
-
-                buff_fun_5D[1] = gam * Ploc[1, il, jl, kl] - Uloc[1, il, jl, kl]
-                buff_fun_5D[2] =
-                    (eos.gamma-1) * Ploc[2, il, jl, kl] - gam^2 * w - Uloc[2, il, jl, kl]
-                buff_fun_5D[3] = Ploc[3, il, jl, kl] * gam * w - Uloc[3, il, jl, kl]
-                buff_fun_5D[4] = Ploc[4, il, jl, kl] * gam * w - Uloc[4, il, jl, kl]
-                buff_fun_5D[5] = Ploc[5, il, jl, kl] * gam * w - Uloc[5, il, jl, kl]
-
-                buff_jac_5D[1] = gam
-                buff_jac_5D[6] = 0
-                buff_jac_5D[11] = Ploc[3, il, jl, kl] * Ploc[1, il, jl, kl]/gam
-                buff_jac_5D[16] = Ploc[4, il, jl, kl] * Ploc[1, il, jl, kl]/gam
-                buff_jac_5D[21] = Ploc[5, il, jl, kl] * Ploc[1, il, jl, kl]/gam
-
-                buff_jac_5D[2] = -gam^2
-                buff_jac_5D[7] = eos.gamma*(-gam^2) + eos.gamma - 1
-                buff_jac_5D[12] = -2 * Ploc[3, il, jl, kl] * (w)
-                buff_jac_5D[17] = -2 * Ploc[4, il, jl, kl] * (w)
-                buff_jac_5D[22] = -2 * Ploc[5, il, jl, kl] * (w)
-
-                buff_jac_5D[3] = Ploc[3, il, jl, kl] * gam
-                buff_jac_5D[8] = eos.gamma * Ploc[3, il, jl, kl] * gam
-                buff_jac_5D[13] = Ploc[3, il, jl, kl] ^ 2 * w / gam + w * gam
-                buff_jac_5D[18] = Ploc[3, il, jl, kl] * Ploc[4, il, jl, kl] * w / gam
-                buff_jac_5D[23] = Ploc[3, il, jl, kl] * Ploc[5, il, jl, kl] * w / gam
-
-                buff_jac_5D[4] = Ploc[4, il, jl, kl] * gam
-                buff_jac_5D[9] = eos.gamma * Ploc[4, il, jl, kl] * gam
-                buff_jac_5D[14] = Ploc[3, il, jl, kl] * Ploc[4, il, jl, kl] * w / gam
-                buff_jac_5D[19] = Ploc[4, il, jl, kl]^2 * w / gam + w * gam
-                buff_jac_5D[24] = Ploc[4, il, jl, kl] * Ploc[5, il, jl, kl] * w / gam
-
-                buff_jac_5D[5] = Ploc[5, il, jl, kl] * gam
-                buff_jac_5D[10] = eos.gamma * Ploc[5, il, jl, kl] * gam
-                buff_jac_5D[15] = Ploc[3, il, jl, kl] * Ploc[5, il, jl, kl] * w / gam
-                buff_jac_5D[20] = Ploc[4, il, jl, kl] * Ploc[5, il, jl, kl] * w / gam
-                buff_jac_5D[25] = Ploc[5, il, jl, kl] ^ 2 * w / gam + w * gam
-
-
-                LU_dec_5D!(buff_jac_5D, buff_fun_5D, buff_out_5D)
-
-                if buff_out_5D[1]^2 +
-                   buff_out_5D[2]^2 +
-                   buff_out_5D[3]^2 +
-                   buff_out_5D[4]^2 +
-                   buff_out_5D[5]^2 < tol ^ 2
-                    if isfinite(Ploc[1, il, jl, kl]) &&
-                       isfinite(Ploc[2, il, jl, kl]) &&
-                       isfinite(Ploc[3, il, jl, kl]) &&
-                       isfinite(Ploc[4, il, jl, kl]) &&
-                       isfinite(Ploc[5, il, jl, kl])
-                        convergence_5D = true
-                        Ploc[1, il, jl, kl] = max(1e-8, Ploc[1, il, jl, kl]) #DENISTY FLOOR
-                        Ploc[2, il, jl, kl] = max(1e-8, Ploc[2, il, jl, kl]) #INTERNAL ENERGY FLOOR
-
-                        #LORENTZ FACTOR LIMITER
-                        γ = sqrt(
-                            Ploc[3, il, jl, kl]^2 +
-                            Ploc[4, il, jl, kl]^2 +
-                            Ploc[5, il, jl, kl]^2 +
-                            1,
-                        )
-                        Ploc[3, il, jl, kl] = Ploc[3, il, jl, kl]/γ
-                        Ploc[4, il, jl, kl] = Ploc[4, il, jl, kl]/γ
-                        Ploc[5, il, jl, kl] = Ploc[5, il, jl, kl]/γ
-                        γ = min(γ, 50)
-                        Ploc[3, il, jl, kl] = Ploc[3, il, jl, kl]*γ
-                        Ploc[4, il, jl, kl] = Ploc[4, il, jl, kl]*γ
-                        Ploc[5, il, jl, kl] = Ploc[5, il, jl, kl]*γ
-                    end
-                    break
-                end
-
-                Ploc[1, il, jl, kl] = Ploc[1, il, jl, kl] - buff_out_5D[1]
-                Ploc[2, il, jl, kl] = Ploc[2, il, jl, kl] - buff_out_5D[2]
-                Ploc[3, il, jl, kl] = Ploc[3, il, jl, kl] - buff_out_5D[3]
-                Ploc[4, il, jl, kl] = Ploc[4, il, jl, kl] - buff_out_5D[4]
-                Ploc[5, il, jl, kl] = Ploc[5, il, jl, kl] - buff_out_5D[5]
-            end
-        end
-
-        #1DW METHOD with bisection (last fallback - brute force) (Noble et al. 2006)
-        if !convergence_1DW && !convergence_2D && !convergence_5D
-            S² = Q_x*Q_x + Q_y*Q_y + Q_z*Q_z
-            W_min = max(1e-15, sqrt(S²))
-            W_max = W_min * 10.0
-            fun_min =
-                Q_t + W_min -
-                (
-                    (eos.gamma - 1) / eos.gamma
-                )*(W_min*(1 - S²/W_min^2) - D*sqrt(max(0.0, 1 - S²/W_min^2)))
-            fun_max =
-                Q_t + W_max -
-                (
-                    (eos.gamma - 1) / eos.gamma
-                )*(W_max*(1 - S²/W_max^2) - D*sqrt(max(0.0, 1 - S²/W_max^2)))
-            count = 0
-            while fun_min*fun_max > 0 && count < 100
-                W_max *= 10.0
-                fun_max =
-                    Q_t + W_max -
-                    (
-                        (eos.gamma - 1) / eos.gamma
-                    )*(W_max*(1 - S²/W_max^2) - D*sqrt(max(0.0, 1 - S²/W_max^2)))
-                count += 1
+        for _ in 1:100
+            if fb == 0 || abs(b - a) <= tolerance
+                converged = true
+                break
             end
 
-            if fun_min*fun_max <= 0
-                for i = 1:(n_iter*10)
-                    W_mid = 0.5*(W_min + W_max)
-                    fun_mid =
-                        Q_t + W_mid -
-                        (
-                            (eos.gamma - 1) / eos.gamma
-                        )*(W_mid*(1 - S²/W_mid^2) - D*sqrt(max(0.0, 1 - S²/W_mid^2)))
-
-                    if fun_mid^2 < (1e-6)^2
-                        convergence_bisection = true
-                        W = W_mid
-                        break
-                    end
-
-                    if fun_min * fun_mid < 0
-                        W_max = W_mid
-                        fun_max = fun_mid
-                    else
-                        W_min = W_mid
-                        fun_min = fun_mid
-                    end
-                    W = W_mid
-                end
+            s = if fa != fc && fb != fc
+                (a*fb*fc)/((fa - fb)*(fa - fc)) +
+                (b*fa*fc)/((fb - fa)*(fb - fc)) +
+                (c*fa*fb)/((fc - fa)*(fc - fb))
             else
-                #### BE CAREFUL ####
-                # W = W_max
-                # convergence_bisection = true
+                b - fb*(b - a)/(fb - fa)
+            end
+
+            if ((s - (3*a + b)/4)*(s - b) >= 0) || 
+               (mflag && abs(s - b) >= abs(b - c)/2) ||
+               (!mflag && abs(s - b) >= abs(c - d)/2) ||
+               (mflag && abs(b - c) < tolerance) ||
+               (!mflag && abs(c - d) < tolerance)
+                s = (a + b)/2
+                mflag = true
+            else
+                mflag = false
+            end
+
+            d, c, fc = c, b, fb
+            fs = f(s)
+
+            if fa * fs < 0
+                b, fb = s, fs
+            else
+                a, fa = s, fs
+            end
+
+            if abs(fa) < abs(fb)
+                a, b = b, a
+                fa, fb = fb, fa
             end
         end
 
-        if convergence_1DW || convergence_2D || convergence_bisection
-            v² = S² / W^2
-            γ = 1/sqrt(1-v²)
-            γ = min(γ, 50)                       #LORENTZ FACTOR LIMITER
-            rho = max(1e-8, D/γ)                      #DENSITY FLOOR 
-            UU = max(1e-8, (W / γ^2 - D / γ) / eos.gamma)   #INTERNAL ENERGY FLOOR 
-            Ploc[1, il, jl, kl] = rho
-            Ploc[2, il, jl, kl] = UU
-            Ploc[3, il, jl, kl] = γ*Q_x/W
-            Ploc[4, il, jl, kl] = γ*Q_y/W
-            Ploc[5, il, jl, kl] = γ*Q_z/W
-        end
-
-
-        #STOP CODE, WHEN DOES NOT CONVERGE
-        if !convergence_1DW && !convergence_2D && !convergence_5D && !convergence_bisection
+        Z_SOL = b
+        vsq = S²/(Z_SOL)^2
+        W = 1/sqrt(1 - vsq)
+        if converged
+            Ploc[1, il, jl, kl] = D/W
+            Ploc[2, il, jl, kl] = S₁/(Z_SOL)
+            Ploc[3, il, jl, kl] = S₂/(Z_SOL)
+            Ploc[4, il, jl, kl] = S₃/(Z_SOL)
+            Ploc[5, il, jl, kl] = 1/eos.gamma *(Z_SOL/((D/W)*W^2)-1)
+        else
             Ploc[1, il, jl, kl] = sqrt(-1)
             Ploc[2, il, jl, kl] = sqrt(-1)
             Ploc[3, il, jl, kl] = sqrt(-1)
             Ploc[4, il, jl, kl] = sqrt(-1)
             Ploc[5, il, jl, kl] = sqrt(-1)
-        end
-
+        end       
     end
 
     @synchronize
