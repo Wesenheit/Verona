@@ -71,7 +71,7 @@ end
         end
     end
 
-    if i > 1 && j > 1 && k > 1 && j < Nx-2 && j < Ny-2 && k < Nz-2
+    if i > 1 && j > 1 && k > 1 && i < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:5
             if dim == x
                 q_i = P[idx,i+1,j,k]
@@ -159,7 +159,7 @@ end
     i, j, k = @index(Global, NTuple)    
     Nx,Ny,Nz = @uniform @ndrange()
     
-    if i > 3 && j > 3 && k > 3 && i < Nx-3 && j < Ny-3 && k < Nz-3
+    if i > 3 && j > 3 && k > 3 && i < Nx-2 && j < Ny-2 && k < Nz-2
         for idx in 1:5
             Ubuff[idx,i,j,k] = U[idx,i,j,k] - dt/dx * (Fx[idx,i,j,k] - Fx[idx,i-1,j,k]) - dt/dy * (Fy[idx,i,j,k] - Fy[idx,i,j-1,k]) - dt/dz * (Fz[idx,i,j,k] - Fz[idx,i,j,k-1])
         end
@@ -297,6 +297,13 @@ function HARM_HLL(comm,P::VeronaArr,MPI_dims::Tuple{Int64,Int64,Int64},
         if t > thres_to_dump
             i+=1
             thres_to_dump += drops
+            dims, periods, coords = MPI.Cart_get(comm)
+            #if coords[1] == 1 
+            #    println(maximum(Array(P.arr)[3,2:end-1,2:end-1,2:end-1]))
+            #    println(maximum(Array(P.arr)[3,:,:,:]))
+            #end
+
+
             if MPI.Comm_rank(comm) == 0
                 elapsed = time()-t0
                 if verbose

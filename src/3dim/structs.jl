@@ -219,7 +219,7 @@ end
     buff_fun_5D   = @view buff_fun_t_5D[:,il,jl,kl]
     buff_jac_5D   = @MVector zeros(T,25)
 
-    if i > 3 && i < Nx - 3 && j > 3 && j < Ny-3 && k > 3 && k < Nz-3
+    if i > 3 && i < Nx - 2 && j > 3 && j < Ny-2 && k > 3 && k < Nz-2
 	
         #Conserved Variable
         D   = Uloc[1,il,jl,kl]
