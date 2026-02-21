@@ -89,7 +89,10 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
         R = sqrt(X^2 + Y^2 + Z^2)
         if R < R_max
             if R < R_eng
-                ρ = Rho0 * (R_max/R_eng)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
+                ρ =
+                    Rho0 *
+                    (R_max/R_eng)^2 *
+                    (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             else
                 ρ = Rho0 * (R_max/R)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             end
@@ -100,7 +103,7 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
         v1 = 0.0
         v2 = 0.0
         v3 = 0.0
-        u  = Temp             
+        u = Temp
 
         if R < R_eng
             ρ = ρ * 1e-2
@@ -108,8 +111,8 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
             r⊥ = sqrt(Y^2 + Z^2)
             prof = 1 / cosh(r⊥ / R_eng)^8
 
-            v0 = sqrt(1 - 1 / (Gamma0^2))   
-            v1 = v0 * prof                
+            v0 = sqrt(1 - 1 / (Gamma0^2))
+            v1 = v0 * prof
             v2 = 0.0
             v3 = 0.0
         end
@@ -120,7 +123,9 @@ Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
         v2tot = v1*v1 + v2*v2 + v3*v3
         if v2tot >= 1
             s = sqrt((1 - 1e-12) / v2tot)
-            v1 *= s; v2 *= s; v3 *= s
+            v1 *= s;
+            v2 *= s;
+            v3 *= s
         end
 
         P.arr[1, i, j, k] = ρ
@@ -193,7 +198,7 @@ Verona3D.HARM_HLL(
     drops,
     floor,
     ARGS[1],
-    true,               
+    true,
     n_it,
     tol,
     TurnOff,
