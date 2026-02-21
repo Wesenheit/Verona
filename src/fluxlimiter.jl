@@ -1,4 +1,4 @@
-function MINMOD(q_im2,q_im1, q_i, q_ip1, q_ip2)
+function MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
     """
     simple minmod reconstruction
     """
