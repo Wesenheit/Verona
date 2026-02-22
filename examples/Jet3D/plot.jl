@@ -17,11 +17,12 @@ Y = (-div(Y_tot, 2)*dy, div(Y_tot, 2) * dy)
 X = (0, X_tot * dx)
 Z_slice = div(size(data["data"])[4], 2)
 
-gamma = sqrt.(
-    data["data"][3, :, :, Z_slice] .^ 2 +
-    data["data"][4, :, :, Z_slice] .^ 2 +
-    data["data"][5, :, :, Z_slice] .^ 2 .+ 1.0,
-)
+v2 = data["data"][2, :, :, Z_slice].^2 .+
+     data["data"][3, :, :, Z_slice].^2 .+
+     data["data"][4, :, :, Z_slice].^2
+
+gamma = 1.0 ./ sqrt.(1 .- v2)
+
 gam_max = log10(maximum(gamma))
 min_val = minimum(log10.(data["data"][1, :, :, Z_slice]))
 max_val = maximum(log10.(data["data"][1, :, :, Z_slice]))
