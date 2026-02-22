@@ -172,8 +172,6 @@ function TurnOff(P, t)
     P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
     P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
 end
-TurnOff(P, t, _idxs, _dims) = TurnOff(P, t)
-
 if MPI.Comm_rank(comm) == 0
     println("dt: ", dt)
     println("grid setup ", end_calc-start_calc)
@@ -187,8 +185,12 @@ CuP = Verona3D.CuParVector3D{Type}(P)
 Verona3D.HARM_HLL(
     comm,
     CuP,
-    (MPI_X, MPI_Y, MPI_Z),
-    (SizeX, SizeY, SizeZ),
+    MPI_X,
+    MPI_Y,
+    MPI_Z,
+    SizeX,
+    SizeY,
+    SizeZ,
     dt,
     dx,
     dy,
@@ -198,7 +200,6 @@ Verona3D.HARM_HLL(
     drops,
     floor,
     ARGS[1],
-    true,
     n_it,
     tol,
     TurnOff,
