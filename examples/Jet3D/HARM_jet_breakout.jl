@@ -18,7 +18,7 @@ if CUDA.functional()
     @info "Process $rank using GPU $(CUDA.device())"
 end
 
-MPI_X = 1
+MPI_X = 4
 MPI_Y = 1
 MPI_Z = 1
 @assert MPI_X * MPI_Y * MPI_Z == MPI.Comm_size(comm)
@@ -30,7 +30,7 @@ comm = MPI.Cart_create(
 )
 
 eos = Verona.EosTypes.Polytrope{Type}(4.0/3.0)
-Nx = 256 - 6
+Nx = 128 - 6
 Ny = 256 - 6
 Nz = 256 - 6
 
@@ -142,68 +142,54 @@ dt::Type = Cmax / (1/dx + 1/dy + 1/dz)
 T::Type = box_X
 n_it::Int64 = 50.0
 tol::Type = 1e-6
-reconstruction_method = Val(:PPM)
 T_exp::Type = box_X/10
 
-function TurnOff(P, t)
-    if t > box_X/3 && t < box_X
+function TurnOff(P,t,ids_dim,tot_dim)
+    if t > box_X/3 && t < box_X && ids_dim[1] == 0
         P.arr[2, 1:3, :, :] .*= (1-dt/T_exp)
     end
     #zero grad Y
-    P.arr[:, :, 1, :] .= P.arr[:, :, 4, :]
-    P.arr[:, :, 2, :] .= P.arr[:, :, 4, :]
-    P.arr[:, :, 3, :] .= P.arr[:, :, 4, :]
+    if ids_dim[2] == 0
+        P.arr[:, :, 1, :] .= P.arr[:, :, 4, :]
+        P.arr[:, :, 2, :] .= P.arr[:, :, 4, :]
+        P.arr[:, :, 3, :] .= P.arr[:, :, 4, :]
+    end 
 
-    P.arr[:, :, end-2, :] .= P.arr[:, :, end-3, :]
-    P.arr[:, :, end-1, :] .= P.arr[:, :, end-3, :]
-    P.arr[:, :, end, :] .= P.arr[:, :, end-3, :]
-
+    if ids_dim[2] == tot_dim[2] - 1
+        P.arr[:, :, end-2, :] .= P.arr[:, :, end-3, :]
+        P.arr[:, :, end-1, :] .= P.arr[:, :, end-3, :]
+        P.arr[:, :, end, :] .= P.arr[:, :, end-3, :]
+    end 
     #zero grad Z
-    P.arr[:, :, :, 1] .= P.arr[:, :, :, 4]
-    P.arr[:, :, :, 2] .= P.arr[:, :, :, 4]
-    P.arr[:, :, :, 3] .= P.arr[:, :, :, 4]
+    if ids_dim[3] == 0
+        P.arr[:, :, :, 1] .= P.arr[:, :, :, 4]
+        P.arr[:, :, :, 2] .= P.arr[:, :, :, 4]
+        P.arr[:, :, :, 3] .= P.arr[:, :, :, 4]
+    end
 
-    P.arr[:, :, :, end-2] .= P.arr[:, :, :, end-3]
-    P.arr[:, :, :, end-1] .= P.arr[:, :, :, end-3]
-    P.arr[:, :, :, end] .= P.arr[:, :, :, end-3]
+    if ids_dim[3] == tot_dim[3] - 1
+        P.arr[:, :, :, end-2] .= P.arr[:, :, :, end-3]
+        P.arr[:, :, :, end-1] .= P.arr[:, :, :, end-3]
+        P.arr[:, :, :, end] .= P.arr[:, :, :, end-3]
+    end 
 
     #zero grad X
-    P.arr[:, end-2, :, :] .= P.arr[:, end-3, :, :]
-    P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
-    P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
+    if ids_dim[1] == tot_dim[1] - 1
+        P.arr[:, end-2, :, :] .= P.arr[:, end-3, :, :]
+        P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
+        P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
+    end
 end
 if MPI.Comm_rank(comm) == 0
     println("dt: ", dt)
     println("grid setup ", end_calc-start_calc)
     println("Threads: ", nthreads())
 end
-drops::Type = T/1000.0
+drops::Type = T/100.0
 SizeX = 4
 SizeY = 4
 SizeZ = 4
 CuP = Verona3D.CuParVector3D{Type}(P)
-Verona3D.HARM_HLL(
-    comm,
-    CuP,
-    MPI_X,
-    MPI_Y,
-    MPI_Z,
-    SizeX,
-    SizeY,
-    SizeZ,
-    dt,
-    dx,
-    dy,
-    dz,
-    T,
-    eos,
-    drops,
-    floor,
-    ARGS[1],
-    n_it,
-    tol,
-    TurnOff,
-    reconstruction_method,
-)
+Verona3D.HARM_HLL(comm,CuP,(MPI_X,MPI_Y,MPI_Z),(SizeX,SizeY,SizeZ),dt,dx,dy,dz,T,eos,drops,floor,ARGS[1],true,n_it,tol,TurnOff)
 
 MPI.Finalize()
