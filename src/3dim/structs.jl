@@ -225,95 +225,124 @@ end
         Uloc[idx, il, jl, kl] = U[idx, i, j, k]
     end
 
-    if i > 3 && i < Nx - 2 && j > 3 && j < Ny-2 && k > 3 && k < Nz-2
+    if i > 3 && i < Nx - 2 && j > 3 && j < Ny - 2 && k > 3 && k < Nz - 2
 
-        #Conserved Variable
-        D = Uloc[1, il, jl, kl]
+        D  = Uloc[1, il, jl, kl]
         S₁ = Uloc[2, il, jl, kl]
         S₂ = Uloc[3, il, jl, kl]
         S₃ = Uloc[4, il, jl, kl]
-        τ = Uloc[5, il, jl, kl]
+        τ  = Uloc[5, il, jl, kl]
 
-        #Useful
         S² = S₁*S₁ + S₂*S₂ + S₃*S₃
-        Z_min = max(D, sqrt(S²)*(1+1e-12))
-        Z_max = max(Z_min*2, D + eos.gamma*τ + 10*abs(τ))
-        a = Z_min
-        b = Z_max
+        Z_guess = Ploc[1]*(1 + eos.gamma*Ploc[5]) * (1 / (1 - (Ploc[2]^2 + Ploc[3]^2 + Ploc[4]^2)))
 
-        #Function for BRENT solver
+        Z_min = max(D, sqrt(S²)*(1 + 1e-12))
+        a = Z_min
+        b = 2*Z_guess
+        if b < a
+            b = 2*a
+        end
+
         f(z) = begin
             τ + D - z +
-            ((eos.gamma - 1)/eos.gamma) * (z*(1 - (S² / z^2)) - D*sqrt(1 - ((S² / z^2))))
+            ((eos.gamma - 1)/eos.gamma) * (z*(1 - (S² / z^2)) - D*sqrt(1 - (S² / z^2)))
         end
 
-        #BRENT SOLVER
-        fa, fb = f(a), f(b)
-        if abs(fa) < abs(fb)
-            a, b = b, a
-            fa, fb = fb, fa
-        end
-        c, fc, d = a, fa, 0.0
-        mflag = true
-        tolerance = 1e-8
-        converged = false
+        fa = f(a)
+        fb = f(b)
 
-        for _ = 1:100
-            if fb == 0 || abs(b - a) <= tolerance
-                converged = true
+        bracketed = false
+        for _ = 1:50
+            if fa * fb < 0
+                bracketed = true
                 break
             end
+            b = 2*b
+            fb = f(b)
+        end
 
-            s = if fa != fc && fb != fc
-                (a*fb*fc)/((fa - fb)*(fa - fc)) +
-                (b*fa*fc)/((fb - fa)*(fb - fc)) +
-                (c*fa*fb)/((fc - fa)*(fc - fb))
-            else
-                b - fb*(b - a)/(fb - fa)
-            end
-
-            if ((s - (3*a + b)/4)*(s - b) >= 0) ||
-               (mflag && abs(s - b) >= abs(b - c)/2) ||
-               (!mflag && abs(s - b) >= abs(c - d)/2) ||
-               (mflag && abs(b - c) < tolerance) ||
-               (!mflag && abs(c - d) < tolerance)
-                s = (a + b)/2
-                mflag = true
-            else
-                mflag = false
-            end
-
-            d, c, fc = c, b, fb
-            fs = f(s)
-
-            if fa * fs < 0
-                b, fb = s, fs
-            else
-                a, fa = s, fs
-            end
-
+        converged = false
+        if bracketed
             if abs(fa) < abs(fb)
                 a, b = b, a
                 fa, fb = fb, fa
+            end
+
+            c, fc, d = a, fa, 0.0
+            mflag = true
+
+            atol = tol
+            rtol = sqrt(eps(T))
+
+            for _ = 1:100
+                tol_ba = atol + rtol*max(abs(a), abs(b))
+                if fb == 0 || abs(b - a) <= tol_ba
+                    converged = true
+                    break
+                end
+
+                s = if fa != fc && fb != fc
+                    (a*fb*fc)/((fa - fb)*(fa - fc)) +
+                    (b*fa*fc)/((fb - fa)*(fb - fc)) +
+                    (c*fa*fb)/((fc - fa)*(fc - fb))
+                else
+                    b - fb*(b - a)/(fb - fa)
+                end
+
+                if ((s - (3*a + b)/4)*(s - b) >= 0) ||
+                   (mflag && abs(s - b) >= abs(b - c)/2) ||
+                   (!mflag && abs(s - b) >= abs(c - d)/2) ||
+                   (mflag && abs(b - c) < tol_ba) ||
+                   (!mflag && abs(c - d) < tol_ba)
+                    s = (a + b)/2
+                    mflag = true
+                else
+                    mflag = false
+                end
+
+                d, c, fc = c, b, fb
+                fs = f(s)
+
+                if fa * fs < 0
+                    b, fb = s, fs
+                else
+                    a, fa = s, fs
+                end
+
+                if abs(fa) < abs(fb)
+                    a, b = b, a
+                    fa, fb = fb, fa
+                end
             end
         end
 
         Z_SOL = b
         vsq = S²/(Z_SOL)^2
         W = 1/sqrt(1 - vsq)
-        if converged
-            Ploc[1, il, jl, kl] = D/W
-            Ploc[2, il, jl, kl] = S₁/(Z_SOL)
-            Ploc[3, il, jl, kl] = S₂/(Z_SOL)
-            Ploc[4, il, jl, kl] = S₃/(Z_SOL)
-            Ploc[5, il, jl, kl] = 1/eos.gamma * (Z_SOL/((D/W)*W^2)-1)
-        else
-            Ploc[1, il, jl, kl] = sqrt(-1)
-            Ploc[2, il, jl, kl] = sqrt(-1)
-            Ploc[3, il, jl, kl] = sqrt(-1)
-            Ploc[4, il, jl, kl] = sqrt(-1)
-            Ploc[5, il, jl, kl] = sqrt(-1)
+
+        Wmax = T(50)
+        if W > Wmax
+            W = Wmax
         end
+
+        ρ = D/W
+        u = (1/eos.gamma) * (Z_SOL/(ρ*W^2) - 1)
+
+        ρmin = T(1e-8)
+        umin = T(1e-8)
+
+        if ρ < ρmin
+            ρ = ρmin
+        end
+        if u < umin
+            u = umin
+        end
+
+        Ploc[1, il, jl, kl] = ρ
+        Ploc[2, il, jl, kl] = S₁/Z_SOL
+        Ploc[3, il, jl, kl] = S₂/Z_SOL
+        Ploc[4, il, jl, kl] = S₃/Z_SOL
+        Ploc[5, il, jl, kl] = u
     end
 
     @synchronize
