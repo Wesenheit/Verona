@@ -1,0 +1,21 @@
+[CUDA_Runtime_jll]
+clear = ["version"]
+local = "true"
+
+[HDF5]
+libhdf5 = "/net/software/v1/software/HDF5/1.14.3-nvofbf-2023b/lib/libhdf5.so"
+libhdf5_hl = "/net/software/v1/software/HDF5/1.14.3-nvofbf-2023b/lib/libhdf5_hl.so"
+
+[HDF5_jll]
+libhdf5_hl_path = "/net/software/v1/software/HDF5/1.14.3-nvofbf-2023b/lib/libhdf5_hl.so"
+libhdf5_path = "/net/software/v1/software/HDF5/1.14.3-nvofbf-2023b/lib/libhdf5.so"
+
+[MPIPreferences]
+clear = ["preloads_env_switch"]
+_format = "1.0"
+abi = "OpenMPI"
+binary = "system"
+cclibs = []
+libmpi = "libmpi"
+mpiexec = "mpiexec"
+preloads = []
