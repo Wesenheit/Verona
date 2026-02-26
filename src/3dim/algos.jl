@@ -25,36 +25,28 @@ end
         Nx, Ny, Nz = @ndrange()
         N, M, L = @groupsize()
     end
-    #size of the local threads
-
-    ###parameters on the grid 
-    # sometimes it is more beneficiant to put some values in the shared memory, sometimes it is more beneficient to put them in registers
 
     PL_arr = @localmem eltype(P) (5, N, M, L)
     PR_arr = @localmem eltype(P) (5, N, M, L)
 
     PL = @view PL_arr[:, il, jl, kl]
     PR = @view PR_arr[:, il, jl, kl]
-    #PL = @MVector zeros(T,4)
-    #PR = @MVector zeros(T,4)
 
     FL_arr = @localmem eltype(P) (5, N, M, L)
     FR_arr = @localmem eltype(P) (5, N, M, L)
     FR = @view FR_arr[:, il, jl, kl]
     FL = @view FL_arr[:, il, jl, kl]
-    #FR = @MVector zeros(T,4)
-    #FL = @MVector zeros(T,4)
-
-    #UL = @MVector zeros(T,4)
-    #UR = @MVector zeros(T,4)
 
     UL_arr = @localmem eltype(P) (5, N, M, L)
     UR_arr = @localmem eltype(P) (5, N, M, L)
     UR = @view UR_arr[:, il, jl, kl]
     UL = @view UL_arr[:, il, jl, kl]
 
+    eps_guard = T === Float32 ? T(1e-6) : T(1e-12)
+    v2max = one(T) - eps_guard
 
-    if i > 2 && i < Nx - 2 && j > 2 && j < Ny - 1 && k > 2 && k < Nz-1
+    if i > 2 && i < Nx - 2 && j > 2 && j < Ny - 1 && k > 2 && k < Nz - 1
+        failL = false
         for idx = 1:5
             if dim == x
                 q_i = P[idx, i, j, k]
@@ -75,12 +67,68 @@ end
                 q_ip1 = P[idx, i, j, k+1]
                 q_ip2 = P[idx, i, j, k+2]
             end
-            Q_D, Q_U = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
+            Q_D, Q_U = WENOZ(q_im2, q_im1, q_i, q_ip1, q_ip2)
             PL[idx] = Q_U
+
+            qmin = min(min(q_im2, q_im1), min(q_i, min(q_ip1, q_ip2)))
+            qmax = max(max(q_im2, q_im1), max(q_i, max(q_ip1, q_ip2)))
+            tolQ = eps_guard * (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
+            if !(isfinite(Q_U) && Q_U >= qmin - tolQ && Q_U <= qmax + tolQ)
+                failL = true
+            end
+        end
+
+        v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
+        if (PL[1] < floor) || (PL[5] < floor) || !(isfinite(v2L)) || (v2L >= v2max) ||
+           (!isfinite(PL[1]) || !isfinite(PL[2]) || !isfinite(PL[3]) || !isfinite(PL[4]) || !isfinite(PL[5]))
+            failL = true
+        end
+
+        if failL
+            failL2 = false
+            for idx = 1:5
+                if dim == x
+                    q_i = P[idx, i, j, k]
+                    q_im1 = P[idx, i-1, j, k]
+                    q_im2 = P[idx, i-2, j, k]
+                    q_ip1 = P[idx, i+1, j, k]
+                    q_ip2 = P[idx, i+2, j, k]
+                elseif dim == y
+                    q_i = P[idx, i, j, k]
+                    q_im1 = P[idx, i, j-1, k]
+                    q_im2 = P[idx, i, j-2, k]
+                    q_ip1 = P[idx, i, j+1, k]
+                    q_ip2 = P[idx, i, j+2, k]
+                else
+                    q_i = P[idx, i, j, k]
+                    q_im1 = P[idx, i, j, k-1]
+                    q_im2 = P[idx, i, j, k-2]
+                    q_ip1 = P[idx, i, j, k+1]
+                    q_ip2 = P[idx, i, j, k+2]
+                end
+                Q_D, Q_U = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
+                PL[idx] = Q_U
+                if !isfinite(Q_U)
+                    failL2 = true
+                end
+            end
+
+            v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
+            if (PL[1] < floor) || (PL[5] < floor) || !(isfinite(v2L)) || (v2L >= v2max) ||
+               (!isfinite(PL[1]) || !isfinite(PL[2]) || !isfinite(PL[3]) || !isfinite(PL[4]) || !isfinite(PL[5]))
+                failL2 = true
+            end
+
+            if failL2
+                for idx = 1:5
+                    PL[idx] = P[idx, i, j, k]
+                end
+            end
         end
     end
 
-    if i > 1 && j > 1 && k > 1 && i < Nx-2 && j < Ny-2 && k < Nz-2
+    if i > 1 && j > 1 && k > 1 && i < Nx - 2 && j < Ny - 2 && k < Nz - 2
+        failR = false
         for idx = 1:5
             if dim == x
                 q_i = P[idx, i+1, j, k]
@@ -101,21 +149,113 @@ end
                 q_ip1 = P[idx, i, j, k+2]
                 q_ip2 = P[idx, i, j, k+3]
             end
-
-            Q_D, Q_L = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
+            Q_D, Q_L = WENOZ(q_im2, q_im1, q_i, q_ip1, q_ip2)
             PR[idx] = Q_D
+
+            qmin = min(min(q_im2, q_im1), min(q_i, min(q_ip1, q_ip2)))
+            qmax = max(max(q_im2, q_im1), max(q_i, max(q_ip1, q_ip2)))
+            tolQ = eps_guard * (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
+            if !(isfinite(Q_D) && Q_D >= qmin - tolQ && Q_D <= qmax + tolQ)
+                failR = true
+            end
+        end
+
+        v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
+        if (PR[1] < floor) || (PR[5] < floor) || !(isfinite(v2R)) || (v2R >= v2max) ||
+           (!isfinite(PR[1]) || !isfinite(PR[2]) || !isfinite(PR[3]) || !isfinite(PR[4]) || !isfinite(PR[5]))
+            failR = true
+        end
+
+        if failR
+            failR2 = false
+            for idx = 1:5
+                if dim == x
+                    q_i = P[idx, i+1, j, k]
+                    q_im1 = P[idx, i, j, k]
+                    q_im2 = P[idx, i-1, j, k]
+                    q_ip1 = P[idx, i+2, j, k]
+                    q_ip2 = P[idx, i+3, j, k]
+                elseif dim == y
+                    q_i = P[idx, i, j+1, k]
+                    q_im1 = P[idx, i, j, k]
+                    q_im2 = P[idx, i, j-1, k]
+                    q_ip1 = P[idx, i, j+2, k]
+                    q_ip2 = P[idx, i, j+3, k]
+                else
+                    q_i = P[idx, i, j, k+1]
+                    q_im1 = P[idx, i, j, k]
+                    q_im2 = P[idx, i, j, k-1]
+                    q_ip1 = P[idx, i, j, k+2]
+                    q_ip2 = P[idx, i, j, k+3]
+                end
+                Q_D, Q_L = MINMOD(q_im2, q_im1, q_i, q_ip1, q_ip2)
+                PR[idx] = Q_D
+                if !isfinite(Q_D)
+                    failR2 = true
+                end
+            end
+
+            v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
+            if (PR[1] < floor) || (PR[5] < floor) || !(isfinite(v2R)) || (v2R >= v2max) ||
+               (!isfinite(PR[1]) || !isfinite(PR[2]) || !isfinite(PR[3]) || !isfinite(PR[4]) || !isfinite(PR[5]))
+                failR2 = true
+            end
+
+            if failR2
+                for idx = 1:5
+                    if dim == x
+                        PR[idx] = P[idx, i+1, j, k]
+                    elseif dim == y
+                        PR[idx] = P[idx, i, j+1, k]
+                    else
+                        PR[idx] = P[idx, i, j, k+1]
+                    end
+                end
+            end
         end
     end
 
-
-    if i > 2 && j > 2 && k > 2 && i < Nx-2 && j < Ny-2 && k < Nz-2
+    if i > 2 && j > 2 && k > 2 && i < Nx - 2 && j < Ny - 2 && k < Nz - 2
         for idx in (1, 5)
             PL[idx] = max(floor, PL[idx])
             PR[idx] = max(floor, PR[idx])
         end
 
+        v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
+        if !isfinite(v2L) || v2L >= v2max
+            if isfinite(v2L) && v2L > zero(T)
+                sL = sqrt(v2max / v2L)
+                PL[2] *= sL
+                PL[3] *= sL
+                PL[4] *= sL
+                v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
+            else
+                PL[2] = zero(T)
+                PL[3] = zero(T)
+                PL[4] = zero(T)
+                v2L = zero(T)
+            end
+        end
+
+        v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
+        if !isfinite(v2R) || v2R >= v2max
+            if isfinite(v2R) && v2R > zero(T)
+                sR = sqrt(v2max / v2R)
+                PR[2] *= sR
+                PR[3] *= sR
+                PR[4] *= sR
+                v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
+            else
+                PR[2] = zero(T)
+                PR[3] = zero(T)
+                PR[4] = zero(T)
+                v2R = zero(T)
+            end
+        end
+
         function_PtoU(PR, UR, eos)
         function_PtoU(PL, UL, eos)
+
         if dim == x
             function_PtoFx(PR, FR, eos)
             function_PtoFx(PL, FL, eos)
@@ -127,40 +267,48 @@ end
             function_PtoFz(PL, FL, eos)
         end
 
-        lorL = 1/sqrt(1-(PL[2]^2 + PL[3]^2 + PL[4]^2))#sqrt(PL[3]^2 + PL[4]^2 + PL[5]^2 + 1)
-        lorR = 1/sqrt(1-(PR[2]^2 + PR[3]^2 + PR[4]^2))#sqrt(PR[3]^2 + PR[4]^2 + PR[5]^2 + 1)
+        lorL = 1 / sqrt(one(T) - v2L)
+        lorR = 1 / sqrt(one(T) - v2R)
 
         if dim == x
-            vL = PL[2] #/ lorL
-            vR = PR[2] #/ lorR
+            vL = PL[2]
+            vR = PR[2]
         elseif dim == y
-            vL = PL[3] #/ lorL
-            vR = PR[3] #/ lorR
+            vL = PL[3]
+            vR = PR[3]
         elseif dim == z
-            vL = PL[4] #/ lorL
-            vR = PR[4] #/ lorR
+            vL = PL[4]
+            vR = PR[4]
         end
 
-        CL = (eos.gamma*PL[1]*(eos.gamma-1)*PL[5])/(PL[1]*(1 + (eos.gamma)*PL[5]))#SoundSpeed(PL[1], PL[2], eos)
-        CR = (eos.gamma*PR[1]*(eos.gamma-1)*PR[5])/(PR[1]*(1 + (eos.gamma)*PR[5]))#SoundSpeed(PR[1], PR[2], eos)
+        CL = (eos.gamma * PL[1] * (eos.gamma - 1) * PL[5]) / (PL[1] * (one(T) + eos.gamma * PL[5]))
+        CR = (eos.gamma * PR[1] * (eos.gamma - 1) * PR[5]) / (PR[1] * (one(T) + eos.gamma * PR[5]))
 
-        sigma_S_L = CL / (lorL^2 * (1-CL))
-        sigma_S_R = CR / (lorR^2 * (1-CR))
+        if !isfinite(CL); CL = zero(T); end
+        if !isfinite(CR); CR = zero(T); end
+        CL = max(zero(T), min(CL, v2max))
+        CR = max(zero(T), min(CR, v2max))
+
+        sigma_S_L = CL / (lorL*lorL * (one(T) - CL))
+        sigma_S_R = CR / (lorR*lorR * (one(T) - CR))
+
+        argL = max(zero(T), sigma_S_L * (one(T) - vL*vL + sigma_S_L))
+        argR = max(zero(T), sigma_S_R * (one(T) - vR*vR + sigma_S_R))
 
         C_max_X = max(
-            (vL + sqrt(sigma_S_L * (1-vL^2 + sigma_S_L))) / (1 + sigma_S_L),
-            (vR + sqrt(sigma_S_R * (1-vR^2 + sigma_S_R))) / (1 + sigma_S_R),
-        ) # velocity composition
-        C_min_X =
-            -min(
-                (vL - sqrt(sigma_S_L * (1-vL^2 + sigma_S_L))) / (1 + sigma_S_L),
-                (vR - sqrt(sigma_S_R * (1-vR^2 + sigma_S_R))) / (1 + sigma_S_R),
-            ) # velocity composition
-        if C_max_X < 0
+            (vL + sqrt(argL)) / (one(T) + sigma_S_L),
+            (vR + sqrt(argR)) / (one(T) + sigma_S_R),
+        )
+        C_min_X = -min(
+            (vL - sqrt(argL)) / (one(T) + sigma_S_L),
+            (vR - sqrt(argR)) / (one(T) + sigma_S_R),
+        )
+
+        if C_max_X < zero(T)
             for idx = 1:5
                 Fglob[idx, i, j, k] = FR[idx]
             end
-        elseif C_min_X < 0
+        elseif C_min_X < zero(T)
             for idx = 1:5
                 Fglob[idx, i, j, k] = FL[idx]
             end
