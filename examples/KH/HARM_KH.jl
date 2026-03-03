@@ -92,4 +92,4 @@ Verona3D.HARM_HLL(
     tol,
 )
 
-MPI.Finalize():
+MPI.Finalize()
