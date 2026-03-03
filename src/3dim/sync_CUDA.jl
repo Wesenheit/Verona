@@ -29,8 +29,8 @@ function SendBoundaryY(
 
     left, right = MPI.Cart_shift(comm, 1, 1)
 
-    MPI.Isend(buff_Y_1, right, 0, comm)                #,buff_Y_2,rank_dest_up,0,comm)
-    MPI.Isend(buff_Y_2, left, 1, comm)              #,buff_Y_2,rank_dest_down,1,comm)
+    MPI.Isend(buff_Y_1, right, 2, comm)                #,buff_Y_2,rank_dest_up,0,comm)
+    MPI.Isend(buff_Y_2, left, 3, comm)              #,buff_Y_2,rank_dest_down,1,comm)
 end
 
 function SendBoundaryZ(
@@ -46,8 +46,8 @@ function SendBoundaryZ(
 
     left, right = MPI.Cart_shift(comm, 2, 1)
 
-    MPI.Isend(buff_Z_1, right, 0, comm)
-    MPI.Isend(buff_Z_2, left, 1, comm)
+    MPI.Isend(buff_Z_1, right, 4, comm)
+    MPI.Isend(buff_Z_2, left, 5, comm)
 end
 function WaitForBoundary(
     U::CuParVector3D{T},
@@ -81,22 +81,22 @@ function WaitForBoundary(
 
     # Y direction receives  
     if leftY != MPI.PROC_NULL  # Receive from down neighbor
-        r3 = MPI.Irecv!(buff_Y_1, leftY, 0, comm)
+        r3 = MPI.Irecv!(buff_Y_1, leftY, 2, comm)
         push!(requests, r3)
     end
 
     if rightY != MPI.PROC_NULL  # Receive from up neighbor
-        r4 = MPI.Irecv!(buff_Y_2, rightY, 1, comm)
+        r4 = MPI.Irecv!(buff_Y_2, rightY, 3, comm)
         push!(requests, r4)
     end
 
     if leftZ != MPI.PROC_NULL  # Receive from back neighbor
-        r5 = MPI.Irecv!(buff_Z_1, leftZ, 0, comm)
+        r5 = MPI.Irecv!(buff_Z_1, leftZ, 4, comm)
         push!(requests, r5)
     end
 
     if rightZ != MPI.PROC_NULL  # Receive from forward neighbor
-        r6 = MPI.Irecv!(buff_Z_2, rightZ, 1, comm)
+        r6 = MPI.Irecv!(buff_Z_2, rightZ, 5, comm)
         push!(requests, r6)
     end
 
