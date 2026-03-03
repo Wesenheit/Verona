@@ -77,7 +77,7 @@ const thread_rngs = [MersenneTwister(seed + i) for i = 1:Threads.nthreads()]
 
 start_calc = time()
 
-Threads.@threads for num = 1:(P.size_X * P.size_Y * P.size_Z)
+Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
     cart_idx = CartesianIndices((P.size_X, P.size_Y, P.size_Z))[num]
     i, j, k = Tuple(cart_idx)
 
@@ -98,9 +98,15 @@ Threads.@threads for num = 1:(P.size_X * P.size_Y * P.size_Z)
 
         if R < R_max
             if R < R_eng
-                ρ = Rho0 * (R_max / R_eng)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
+                ρ =
+                    Rho0 *
+                    (R_max / R_eng)^2 *
+                    (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             else
-                ρ = Rho0 * (R_max / R)^2 * (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
+                ρ =
+                    Rho0 *
+                    (R_max / R)^2 *
+                    (1 + randn(thread_rngs[Threads.threadid()]) * 3e-2)
             end
         else
             ρ = outer
@@ -171,7 +177,7 @@ function TurnOff(P, t, ids_dim, tot_dim)
     if ids_dim[2] == tot_dim[2] - 1
         P.arr[:, :, end-2, :] .= P.arr[:, :, end-3, :]
         P.arr[:, :, end-1, :] .= P.arr[:, :, end-3, :]
-        P.arr[:, :, end, :]   .= P.arr[:, :, end-3, :]
+        P.arr[:, :, end, :] .= P.arr[:, :, end-3, :]
     end
 
     if ids_dim[3] == 0
@@ -183,13 +189,13 @@ function TurnOff(P, t, ids_dim, tot_dim)
     if ids_dim[3] == tot_dim[3] - 1
         P.arr[:, :, :, end-2] .= P.arr[:, :, :, end-3]
         P.arr[:, :, :, end-1] .= P.arr[:, :, :, end-3]
-        P.arr[:, :, :, end]   .= P.arr[:, :, :, end-3]
+        P.arr[:, :, :, end] .= P.arr[:, :, :, end-3]
     end
 
     if ids_dim[1] == tot_dim[1] - 1
         P.arr[:, end-2, :, :] .= P.arr[:, end-3, :, :]
         P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
-        P.arr[:, end, :, :]   .= P.arr[:, end-3, :, :]
+        P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
     end
 end
 

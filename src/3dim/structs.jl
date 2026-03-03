@@ -189,11 +189,11 @@ end
     end
 
     if i > 3 && i < Nx - 2 && j > 3 && j < Ny - 2 && k > 3 && k < Nz - 2
-        D  = Uloc[1, il, jl, kl]
+        D = Uloc[1, il, jl, kl]
         S₁ = Uloc[2, il, jl, kl]
         S₂ = Uloc[3, il, jl, kl]
         S₃ = Uloc[4, il, jl, kl]
-        τ  = Uloc[5, il, jl, kl]
+        τ = Uloc[5, il, jl, kl]
 
         eps_guard = max(T(1e-12), T(100) * eps(T))
         v2max = one(T) - eps_guard
@@ -201,7 +201,13 @@ end
         ρmin = T(1e-8)
         umin = T(1e-8)
 
-        okU = isfinite(D) && isfinite(S₁) && isfinite(S₂) && isfinite(S₃) && isfinite(τ) && (D > zero(T))
+        okU =
+            isfinite(D) &&
+            isfinite(S₁) &&
+            isfinite(S₂) &&
+            isfinite(S₃) &&
+            isfinite(τ) &&
+            (D > zero(T))
         if !okU
             Ploc[1, il, jl, kl] = max(Ploc[1, il, jl, kl], ρmin)
             Ploc[2, il, jl, kl] = zero(T)
@@ -218,7 +224,8 @@ end
             denom_prev = one(T) - v2_prev
             denom_prev = ifelse(denom_prev > eps_guard, denom_prev, eps_guard)
 
-            Z_guess = Ploc[1, il, jl, kl] * (one(T) + eos.gamma*Ploc[5, il, jl, kl]) / denom_prev
+            Z_guess =
+                Ploc[1, il, jl, kl] * (one(T) + eos.gamma*Ploc[5, il, jl, kl]) / denom_prev
             if !isfinite(Z_guess) || Z_guess <= zero(T)
                 Z_guess = max(D, sqrt(S²) * (one(T) + eps_guard))
             end
@@ -341,7 +348,9 @@ end
                         v3 *= s
                         vsq = v1*v1 + v2*v2 + v3*v3
                     else
-                        v1 = zero(T); v2 = zero(T); v3 = zero(T)
+                        v1 = zero(T);
+                        v2 = zero(T);
+                        v3 = zero(T)
                         vsq = zero(T)
                     end
                 end

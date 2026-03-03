@@ -72,15 +72,26 @@ end
 
             qmin = min(min(q_im2, q_im1), min(q_i, min(q_ip1, q_ip2)))
             qmax = max(max(q_im2, q_im1), max(q_i, max(q_ip1, q_ip2)))
-            tolQ = eps_guard * (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
+            tolQ =
+                eps_guard *
+                (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
             if !(isfinite(Q_U) && Q_U >= qmin - tolQ && Q_U <= qmax + tolQ)
                 failL = true
             end
         end
 
         v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
-        if (PL[1] < floor) || (PL[5] < floor) || !(isfinite(v2L)) || (v2L >= v2max) ||
-           (!isfinite(PL[1]) || !isfinite(PL[2]) || !isfinite(PL[3]) || !isfinite(PL[4]) || !isfinite(PL[5]))
+        if (PL[1] < floor) ||
+           (PL[5] < floor) ||
+           !(isfinite(v2L)) ||
+           (v2L >= v2max) ||
+           (
+               !isfinite(PL[1]) ||
+               !isfinite(PL[2]) ||
+               !isfinite(PL[3]) ||
+               !isfinite(PL[4]) ||
+               !isfinite(PL[5])
+           )
             failL = true
         end
 
@@ -114,8 +125,17 @@ end
             end
 
             v2L = PL[2]*PL[2] + PL[3]*PL[3] + PL[4]*PL[4]
-            if (PL[1] < floor) || (PL[5] < floor) || !(isfinite(v2L)) || (v2L >= v2max) ||
-               (!isfinite(PL[1]) || !isfinite(PL[2]) || !isfinite(PL[3]) || !isfinite(PL[4]) || !isfinite(PL[5]))
+            if (PL[1] < floor) ||
+               (PL[5] < floor) ||
+               !(isfinite(v2L)) ||
+               (v2L >= v2max) ||
+               (
+                   !isfinite(PL[1]) ||
+                   !isfinite(PL[2]) ||
+                   !isfinite(PL[3]) ||
+                   !isfinite(PL[4]) ||
+                   !isfinite(PL[5])
+               )
                 failL2 = true
             end
 
@@ -154,15 +174,26 @@ end
 
             qmin = min(min(q_im2, q_im1), min(q_i, min(q_ip1, q_ip2)))
             qmax = max(max(q_im2, q_im1), max(q_i, max(q_ip1, q_ip2)))
-            tolQ = eps_guard * (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
+            tolQ =
+                eps_guard *
+                (abs(q_im2) + abs(q_im1) + abs(q_i) + abs(q_ip1) + abs(q_ip2) + one(T))
             if !(isfinite(Q_D) && Q_D >= qmin - tolQ && Q_D <= qmax + tolQ)
                 failR = true
             end
         end
 
         v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
-        if (PR[1] < floor) || (PR[5] < floor) || !(isfinite(v2R)) || (v2R >= v2max) ||
-           (!isfinite(PR[1]) || !isfinite(PR[2]) || !isfinite(PR[3]) || !isfinite(PR[4]) || !isfinite(PR[5]))
+        if (PR[1] < floor) ||
+           (PR[5] < floor) ||
+           !(isfinite(v2R)) ||
+           (v2R >= v2max) ||
+           (
+               !isfinite(PR[1]) ||
+               !isfinite(PR[2]) ||
+               !isfinite(PR[3]) ||
+               !isfinite(PR[4]) ||
+               !isfinite(PR[5])
+           )
             failR = true
         end
 
@@ -196,8 +227,17 @@ end
             end
 
             v2R = PR[2]*PR[2] + PR[3]*PR[3] + PR[4]*PR[4]
-            if (PR[1] < floor) || (PR[5] < floor) || !(isfinite(v2R)) || (v2R >= v2max) ||
-               (!isfinite(PR[1]) || !isfinite(PR[2]) || !isfinite(PR[3]) || !isfinite(PR[4]) || !isfinite(PR[5]))
+            if (PR[1] < floor) ||
+               (PR[5] < floor) ||
+               !(isfinite(v2R)) ||
+               (v2R >= v2max) ||
+               (
+                   !isfinite(PR[1]) ||
+                   !isfinite(PR[2]) ||
+                   !isfinite(PR[3]) ||
+                   !isfinite(PR[4]) ||
+                   !isfinite(PR[5])
+               )
                 failR2 = true
             end
 
@@ -281,16 +321,26 @@ end
             vR = PR[4]
         end
 
-        CL = (eos.gamma * PL[1] * (eos.gamma - 1) * PL[5]) / (PL[1] * (one(T) + eos.gamma * PL[5]))
-        CR = (eos.gamma * PR[1] * (eos.gamma - 1) * PR[5]) / (PR[1] * (one(T) + eos.gamma * PR[5]))
+        CL =
+            (eos.gamma * PL[1] * (eos.gamma - 1) * PL[5]) /
+            (PL[1] * (one(T) + eos.gamma * PL[5]))
+        CR =
+            (eos.gamma * PR[1] * (eos.gamma - 1) * PR[5]) /
+            (PR[1] * (one(T) + eos.gamma * PR[5]))
 
-        if !isfinite(CL); CL = zero(T); end
-        if !isfinite(CR); CR = zero(T); end
+        if !isfinite(CL)
+            ;
+            CL = zero(T);
+        end
+        if !isfinite(CR)
+            ;
+            CR = zero(T);
+        end
         CL = max(zero(T), min(CL, v2max))
         CR = max(zero(T), min(CR, v2max))
 
-        sigma_S_L = CL / (lorL*lorL * (one(T) - CL))
-        sigma_S_R = CR / (lorR*lorR * (one(T) - CR))
+        sigma_S_L = CL / (lorL * lorL * (one(T) - CL))
+        sigma_S_R = CR / (lorR * lorR * (one(T) - CR))
 
         argL = max(zero(T), sigma_S_L * (one(T) - vL*vL + sigma_S_L))
         argR = max(zero(T), sigma_S_R * (one(T) - vR*vR + sigma_S_R))
@@ -299,10 +349,11 @@ end
             (vL + sqrt(argL)) / (one(T) + sigma_S_L),
             (vR + sqrt(argR)) / (one(T) + sigma_S_R),
         )
-        C_min_X = -min(
-            (vL - sqrt(argL)) / (one(T) + sigma_S_L),
-            (vR - sqrt(argR)) / (one(T) + sigma_S_R),
-        )
+        C_min_X =
+            -min(
+                (vL - sqrt(argL)) / (one(T) + sigma_S_L),
+                (vR - sqrt(argR)) / (one(T) + sigma_S_R),
+            )
 
         if C_max_X < zero(T)
             for idx = 1:5

@@ -68,7 +68,7 @@ dz::Type = 2 * box_Z / tot_Z
 floorρ::Type = 1e-12
 flooru::Type = 1e-12
 
-Threads.@threads for num = 1:(P.size_X * P.size_Y * P.size_Z)
+Threads.@threads for num = 1:(P.size_X*P.size_Y*P.size_Z)
     cart_idx = CartesianIndices((P.size_X, P.size_Y, P.size_Z))[num]
     i, j, k = Tuple(cart_idx)
 
@@ -109,9 +109,9 @@ function BC_compressed_1D!(P, t, ids_dim, tot_dim)
     end
 
     if ids_dim[2] == tot_dim[2] - 1
-        P.arr[:, :, end - 2, :] .= P.arr[:, :, end - 3, :]
-        P.arr[:, :, end - 1, :] .= P.arr[:, :, end - 3, :]
-        P.arr[:, :, end, :] .= P.arr[:, :, end - 3, :]
+        P.arr[:, :, end-2, :] .= P.arr[:, :, end-3, :]
+        P.arr[:, :, end-1, :] .= P.arr[:, :, end-3, :]
+        P.arr[:, :, end, :] .= P.arr[:, :, end-3, :]
     end
 
     if ids_dim[3] == 0
@@ -121,15 +121,15 @@ function BC_compressed_1D!(P, t, ids_dim, tot_dim)
     end
 
     if ids_dim[3] == tot_dim[3] - 1
-        P.arr[:, :, :, end - 2] .= P.arr[:, :, :, end - 3]
-        P.arr[:, :, :, end - 1] .= P.arr[:, :, :, end - 3]
-        P.arr[:, :, :, end] .= P.arr[:, :, :, end - 3]
+        P.arr[:, :, :, end-2] .= P.arr[:, :, :, end-3]
+        P.arr[:, :, :, end-1] .= P.arr[:, :, :, end-3]
+        P.arr[:, :, :, end] .= P.arr[:, :, :, end-3]
     end
 
     if ids_dim[1] == tot_dim[1] - 1
-        P.arr[:, end - 2, :, :] .= P.arr[:, end - 3, :, :]
-        P.arr[:, end - 1, :, :] .= P.arr[:, end - 3, :, :]
-        P.arr[:, end, :, :] .= P.arr[:, end - 3, :, :]
+        P.arr[:, end-2, :, :] .= P.arr[:, end-3, :, :]
+        P.arr[:, end-1, :, :] .= P.arr[:, end-3, :, :]
+        P.arr[:, end, :, :] .= P.arr[:, end-3, :, :]
     end
 
     if ids_dim[1] == 0
@@ -142,7 +142,7 @@ end
 T_end::Type = 0.4
 n_it::Int64 = 200
 tol::Type = 1e-8
-drops::Type = T_end/100 
+drops::Type = T_end/100
 
 SizeX = 4
 SizeY = 4
